@@ -91,11 +91,7 @@ mean_tpcs <- data %>%
   dplyr::select(cohort_ID, curve_ID, response_curve_type, everything()) %>%
   mutate(across(c(response_mean, test_temp), as.numeric))
 
-length(unique(mean_tpcs$curve_ID)) #219 unique curve ids ##now 300 ##now 373 #now 415
-
-# mean_tpcswrong <- mean_tpcs %>%
-#   group_by(curve_ID) %>%
-#   filter(n() < 4)
+length(unique(mean_tpcs$curve_ID)) # 415
 
 
 #### 7. generate curve IDs for individual response curves ####
@@ -118,7 +114,7 @@ ind_tpcs <- ind_tpcs %>%
   ungroup() %>%
   mutate(across(c(response_mean, test_temp), as.numeric))
 
-length(unique(ind_tpcs$curve_ID)) #28 ind tpcs ##now 40 
+length(unique(ind_tpcs$curve_ID)) #40 
 
 
 #### 8. generate curve IDs for other sample response curves ####
@@ -232,9 +228,14 @@ curves <- curves %>%
 
 
 response_new_names <- read.csv(here("raw-data", "raw_response_categories.csv"))
-response_ontology <- read.csv(here("raw-data", "response_ontology.csv")) %>%
+response_ontology <- read.csv(here("raw-data", "raw_response_ontology.csv")) %>%
   rename(given_trait_name = Trait.Name) %>%
-  filter(if_any(everything(), ~ . != "")) 
+  filter(if_any(everything(), ~ . != "")) %>%
+  select(Trait.Group, given_trait_name, Trait.Unit, Trait.Definition, Trait.motivation, organization)
+
+response_ontology <-  response_ontology %>%
+  mutate(Trait.Group = if_else(Trait.Group == "Energy aquisition", "energy aquisition", Trait.Group))
+
 
 curves <- curves %>%
   left_join(response_new_names %>% select(new.name, curve_ID, response_type),join_by(curve_ID, response_type))
@@ -263,6 +264,15 @@ curves_new <- curves_new %>%
       response_type
     ))
 
+####handle predation time curves #### 
+
+curves_new <- curves_new %>%
+  mutate(
+    response_value = if_else(
+      response_type %in% c("handling-time", "capture-manuever-time"),
+      1/response_value,   
+      response_value          
+    ))
 
 
 #### 5. clean and classify habitats ####
@@ -333,5 +343,5 @@ check <- curves_new %>%
   select(curve_ID, Trait.motivation, Trait.Group, given_trait_name, response_type, response_unit) %>%
   distinct()
 
-saveRDS(curves_new, file = here("processed-data", "wild-tpcsupdated.RdS"))
+saveRDS(curves_new, file = here("processed-data", "wild-tpcs-clean.RdS"))
 
