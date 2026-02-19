@@ -18,7 +18,7 @@ library(stringr)
 library(dplyr)
 
 #### 2. load most up to date extraction datasheet ####
-filename <- "data_extraction_1_19_2026.csv"
+filename <- "extracted_data.csv"
 raw_data <- read.csv(here("raw-data", filename))
 
 #### 3. initial data cleaning ####
@@ -233,10 +233,6 @@ response_ontology <- read.csv(here("raw-data", "raw_response_ontology.csv")) %>%
   filter(if_any(everything(), ~ . != "")) %>%
   select(Trait.Group, given_trait_name, Trait.Unit, Trait.Definition, Trait.motivation, organization)
 
-response_ontology <-  response_ontology %>%
-  mutate(Trait.Group = if_else(Trait.Group == "Energy aquisition", "energy aquisition", Trait.Group))
-
-
 curves <- curves %>%
   left_join(response_new_names %>% select(new.name, curve_ID, response_type),join_by(curve_ID, response_type))
 
@@ -248,7 +244,15 @@ curves_new <- curves %>%
   left_join(response_ontology %>% select(Trait.Group, given_trait_name, Trait.motivation, organization), join_by(given_trait_name)) %>%
   select(curve_ID, response_type, given_trait_name, Trait.Group, Trait.motivation, organization, everything())
 
-
+curves_new <- curves_new %>%
+ mutate(Trait.Group = case_when(
+    Trait.Group == "metabolism"      ~ "Metabolism",
+    Trait.Group == "reproduction"    ~ "Reproduction",
+    Trait.Group == "somatic growth"  ~ "Somatic Growth",
+    Trait.Group == "survival"        ~ "Survival",
+    Trait.Group == "Energy aquisition"~ "Energy Aquisition",
+    TRUE                             ~ Trait.Group
+  ))
 ####handle survival and mortality curves in this script #### 
 curves_new <- curves_new %>%
   mutate(
@@ -342,6 +346,7 @@ length(unique(curves_new$curve_ID)) #457 unique curve_IDs
 check <- curves_new %>%
   select(curve_ID, Trait.motivation, Trait.Group, given_trait_name, response_type, response_unit) %>%
   distinct()
+
 
 saveRDS(curves_new, file = here("processed-data", "wild-tpcs-clean.RdS"))
 
