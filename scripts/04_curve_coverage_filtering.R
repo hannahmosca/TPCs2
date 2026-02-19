@@ -1,4 +1,5 @@
 # Hannah Mosca # 
+
 # this script is to subset the cleaned performance datasets into curve types 
 library(dplyr)
 library(tidyverse)
@@ -6,10 +7,12 @@ library(here)
 library(ggforce)
 rm(list=ls())
 
-#read in the data
-curves <- readRDS(here('processed-data', 'wild-tpcsupdated.RdS'))
+###make sure 159, 240, and 243 are all moved from decreasing to increasing 
 
-#### 01. normalize all of the datasets so can work with scaled values ####
+#read in the data
+curves <- readRDS(here('processed-data', 'wild-tpcs-clean.RdS'))
+
+#### 01. normalize all of the datasets so can work with scaled values for sorting ####
 data_scaled <- curves %>%
   select(curve_ID, test_temp, response_value, response_type, response_unit) %>%
   group_by(curve_ID, test_temp) %>%
@@ -54,18 +57,16 @@ ggplot() +
   geom_point(data = data_scaled %>%
                filter(has_optimum == TRUE),
              aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 11,
+  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 1,
                       labeller = labeller(curve_ID = curve_labels))
 
 
 
 opt_list <- unique(optimum_curves$curve_ID) #checked these, all fit criteria
 
-#this has not been updated or verified
+# these are ones i got from ctmin and ctmax and unbounded_NO
 adding_to_topt <- c(18, 81, 212, 213, 216, 218, 250, 289, 300, 311, 359, 433, 448, 69, 168, 169, 215, 20, 54, 53, 56, 64, 67, 73, 77, 148, 192, 200, 207, 208, 211,223, 217, 228, 247, 251, 252, 278, 294, 325, 341, 345, 423, 425, 427, 249, 436, 437, 438, 439, 440, 444, 455)
 
-
- # these are ones i got from ctmin and ctmax and unbounded_NO
 opt_list <- c(opt_list, adding_to_topt)
 opt_list <- unique(opt_list)
 
@@ -131,7 +132,7 @@ ggplot() +
                filter(left_bound == "no") %>%
                filter(right_bound == "no"),
              aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 27,
+  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 1,
                       labeller = labeller(curve_ID = curve_labels))
 #irregular: 3, 4, 12, 19, 31, 32, 33, 63, 155, 178, 197, 209, 319, 320, 322, 324, 332, 334, 340, 353, 354, 355, 356, 357, 358, 361, 364, 376, 378, 384
 #move to opt: 20, 54, 53, 56, 64, 67, 73, 77, 148, 192, 200, 207, 208, 211,223, 217, 228, 247, 249, 251, 252, 278, 294, 325, 341, 345, 423, 425, 427, 249, 436, 437, 438, 439, 440, 444, 455
@@ -171,7 +172,7 @@ ggplot() +
                filter(left_bound == "yes") %>%
                filter(right_bound == "no"),
              aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 5,
+  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 1,
                       labeller = labeller(curve_ID = curve_labels))
 
 #move to full curve: 16, 73, 218, 256, 403, 404, 434, 435, 441
@@ -189,7 +190,7 @@ ggplot() +
                filter(left_bound == "no") %>%
                filter(right_bound == "yes"),
              aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 2,
+  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 1,
                       labeller = labeller(curve_ID = curve_labels))
 #moving to irregular: 169, 168
 #moving to full: 215, 255
@@ -283,7 +284,7 @@ ggplot() +
   geom_point(data = unbounded_curve_direction %>%
                filter(direction == "decreasing"), 
              aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 5,
+  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 4,
                       labeller = labeller(curve_ID = curve_labels))
 decreasing_unbounded <- unbounded_curve_direction %>%
   filter(direction == "decreasing")
@@ -319,9 +320,10 @@ distinct_curves <- curves %>%
     TRUE ~ NA_character_
   ))
 
+
 dataset_types <- distinct_curves %>%
   group_by(curve_ID) %>%
-  select(curve_ID, dataset_type, habitat_water) %>%
+  select(curve_ID, dataset_type) %>%
   distinct() %>%
   mutate(
     topt_TF = case_when(curve_ID %in% c(topt_only, ctmin_topt_list, ctmax_topt_list, breadth_list) ~ TRUE, TRUE ~ FALSE),
@@ -336,12 +338,57 @@ dataset_types <- distinct_curves %>%
 
 ###OUTPUT###
 curves <- curves %>%
-  left_join(dataset_types %>% select(-(habitat_water)), join_by(curve_ID))
-
-distinct <- curves %>%
-  select(dataset_type, response_unit, curve_ID, response_type, given_trait_name) %>%
-  distinct()
+  left_join(dataset_types, join_by(curve_ID))
+saveRDS(curves, file = here('processed-data', "wild_tpcs_data_coverage_sorted.RDS"))
 
 
-saveRDS(curves, file = here('processed-data', "wild_tpcs_data_coverage_sorted13_2_2026.RDS"))
+#### visualization ####
+curves <- curves %>%
+  select(n_unique_temps, curve_ID, study_ID, species_ID, given_trait_name, Trait.Group, Trait.motivation, organization, curve_type, land_or_sea, abs_latitude, habitat_water, dataset_type, topt_TF, thermal_min_TF, thermal_max_TF, increasing_side_TF, decreasing_side_TF) %>%
+  distinct() %>%
+  mutate(n_unique_temps_capped = ifelse(n_unique_temps >= 7, "7+", n_unique_temps))
+
+## curve coverage figures ##
+
+## want to order it by how much is most seen
+curves <- curves %>%
+  mutate(dataset_type = factor(
+    dataset_type, levels = c("right_bound","right_bound_withopt", "left_bound", "full_curve","unbounded_decreasing", "left_bound_withopt", "irregular","unbounded_increasing", "topt"))) %>%
+  mutate(n_unique_temps_capped = factor(n_unique_temps_capped,
+                                        levels = c("7+", "6", "5", "4")))
+
+
+a <- ggplot(data = curves, aes(x = dataset_type, fill = (n_unique_temps_capped))) +
+  geom_bar(position = "stack", colour = "black",linewidth = 0.2) +
+  scale_fill_manual(values = c("4"= "#542344",
+                               "5" = "#76B041",
+                               "6" ="#9ED8DB",
+                               "7+" = "#FFA400")) +
+  xlab(NULL) +
+  ylab("Number of datasets") +
+  scale_y_continuous(expand = expansion(mult = 0.00),
+                     breaks = seq(0,150,25)) +
+  scale_x_discrete(
+    labels = c(
+      "full_curve" = "Full curve",
+      "left_bound_withopt" = "T-min + T-opt",
+      "right_bound_withopt" = "T-max + T-opt", 
+      "topt" = "T-opt only",
+      "left_bound" = "T-min only",
+      "right_bound" = "T-max only",
+      "unbounded_increasing" = "Unbound, inc",
+      "unbounded_decreasing" = "Unbound, dec",
+      "irregular" = "Irregular")) +
+  coord_flip() +
+  theme_classic() +
+  theme(
+    legend.position = "right",
+    axis.text.y = element_text(size = 14),
+    axis.text.x = element_text(size = 14),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+a
+ggsave("dataset_type_his_temp.png", plot = a, path = here("figures"), width = 6, height = 4)
 
