@@ -277,6 +277,20 @@ curves_new <- curves_new %>%
       1/response_value,   
       response_value          
     ))
+#updating units
+
+curves_new <- curves_new %>%
+  mutate(
+    response_unit = if_else(
+      response_type == "handling-time", "(s/prey)^1",   
+      response_unit          
+    ))
+curves_new <- curves_new %>%
+  mutate(
+    response_unit = if_else(
+      response_type == "capture-manuever-time", "1/s",   
+      response_unit          
+    ))
 
 
 #### 5. clean and classify habitats ####
