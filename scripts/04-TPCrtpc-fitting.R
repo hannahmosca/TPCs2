@@ -4,17 +4,16 @@
 #this script is for fitting TPCs with rtpc package and filtering the data so we know what part of the curve data for, if we can fit all of the datasets with curves, etc.
 
 #### 1. loading and installing packages and data ####
-install.packages('rTPC')
 # load packages
 library(rTPC)
 library(nls.multstart)
-install.packages("nls.multstart")
 library(broom)
 library(tidyverse)
 library(dplyr)
 library(here)
+
 #load the data
-d <- readRDS(here("processed-data","wild-tpcsupdated.RdS")) # this was made in script 01
+d <- readRDS(here("processed-data","wild-tpcs-clean.RdS")) # this was made in script 01
 
 # classifying datasets by how much data is in them//how many test temps
 # TP datasets with 5+ temperatures, calling them 'high res'
@@ -1299,9 +1298,9 @@ all_paramaters <- left_join(all_params, all_param_points, join_by(curve_ID, mode
   select(-(c(test_temp_topt, test_temp_ctmax, test_temp_ctmin, list_id.y, list_id.x))) %>%
   select(curve_ID, model, everything())
 
-saveRDS(all_fits, file = here('processed-data', "model_fit_evaluations_17_10_25.RDS"))
-saveRDS(all_preds, file = here('processed-data', "all_model_predictions_17_10_25.RDS"))
-saveRDS(all_paramaters, file = here('processed-data', "all_model_params_17_10_25.RDS"))
+saveRDS(all_fits, file = here('processed-data', "model_fit_evaluations.RDS"))
+saveRDS(all_preds, file = here('processed-data', "all_model_predictions.RDS"))
+saveRDS(all_paramaters, file = here('processed-data', "all_model_params.RDS"))
 
 
 
