@@ -5,22 +5,20 @@ library(dplyr)
 library(tidyverse)
 rm(list=ls())
 #### this is a script for analyzing activation energy ####
-act_eng <- readRDS(here("processed-data", "new_activation_energy_subset.RDS"))
-curve_params <- readRDS(here("processed-data", "sorted_datasets_withparams.RDS")) %>%
-  select(!(c(Trait.Group, Trait.motivation))) 
-curves <- readRDS(here("processed-data", "wild-tpcsupdated.RdS"))
+act_eng <- readRDS(here("processed-data", "activation_energy_subset.RDS"))
+curve_params <- readRDS(here("processed-data", "tpcs_with_fitted_params.RDS"))
+curves <- readRDS(here("processed-data", "wild-tpcs-clean.RdS"))
 curve_params <- curve_params %>%
-  left_join(curves %>% select(species_ID, curve_ID, Trait.Group, Trait.motivation, organization), join_by(curve_ID)) %>%
+  left_join(curves %>% select(species_ID, curve_ID, organization), join_by(curve_ID)) %>%
   distinct()
-curve_params <- curve_params %>%
-  mutate(organization = ifelse(Trait.Group == "reproduction", "population", organization))
+
 
 act_eng <- act_eng %>%
   left_join(curve_params %>% select(curve_ID, Trait.Group, Trait.motivation, organization, thermal_tolerance, breadth, dataset_type, breadth_TF, thermal_tolerance_TF, study_ID, habitat_water, given_trait_name, land_or_sea, species_ID, latitude, abs_latitude), join_by(curve_ID))
 
 
 act_eng <- act_eng %>%
-  mutate(Trait.Group = factor(Trait.Group, levels = c("metabolism", "Energy aquisition", "somatic growth", "Locomotion", "reproduction", "survival"))) %>%
+  mutate(Trait.Group = factor(Trait.Group, levels = c("Metabolism", "Energy Aquisition", "Somatic Growth", "Locomotion", "Reproduction", "Survival"))) %>%
   mutate(Trait.motivation = factor(Trait.motivation, levels = c("negative", "voluntary", "autonomic", "positive"))) %>%
   mutate(organization = factor(organization, levels = c("internal", "individual", "interaction", "population")))
 
@@ -32,16 +30,16 @@ average_ee_TG <- act_eng %>%
 
 average_ee_TG <- average_ee_TG %>%
   select(study_ID, Trait.Group, species_ID, averaged_e, latitude) %>%
-  distinct() #82
+  distinct() #83 now
 
-mean(average_ee_TG$averaged_e) #.70
+mean(average_ee_TG$averaged_e) #.71
 se <- sd(average_ee_TG$averaged_e, na.rm = TRUE) /
   sqrt(sum(!is.na(average_ee_TG$averaged_e))) #0.05
 
 median(average_ee_TG$averaged_e) #.64
 
 average_ee_TG_M <- average_ee_TG %>%
-  filter(Trait.Group == "metabolism")
+  filter(Trait.Group == "Metabolism")
 median(average_ee_TG_M$averaged_e)  #.564
 
 mean(average_ee_TG_M$averaged_e) #.563
@@ -66,9 +64,9 @@ average_ee_TM <- act_eng %>%
 
 average_ee_TM <- average_ee_TM %>%
   select(study_ID, Trait.Group, Trait.motivation, species_ID, averaged_e, latitude) %>%
-  distinct() #93
+  distinct() #94
 
-mean(average_ee_TM$averaged_e) #.68
+mean(average_ee_TM$averaged_e) #.69
 
 motivation_summary <- average_ee_TM %>%
   # filter(Trait.Group != "Survival") %>%
@@ -90,7 +88,7 @@ average_ee_TO <- act_eng %>%
 
 average_ee_TO <- average_ee_TO %>%
   select(study_ID, Trait.Group, Trait.motivation, organization, species_ID, averaged_e, latitude) %>%
-  distinct() #93
+  distinct() #94
 
 
 
@@ -114,11 +112,11 @@ trait.groups <- ggplot(average_ee_TG, aes(x = averaged_e, y = Trait.Group,  # re
   geom_vline(xintercept = 0.65, linetype = "dashed", color = "red3", linewidth = .5, alpha = .4) +
   geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = .65) +
   geom_point(aes(y = Trait.Group), shape = 73, size = 2.5, alpha = .4) +
-  geom_errorbarh(data = trait_summary %>% filter(Trait.Group != "Survival"), inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high,y = Trait.Group),
+  geom_errorbarh(data = trait_summary, inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high,y = Trait.Group),
                  height = 0.10,linewidth = 0.4, color = "black",position = position_nudge(y = -0.15)) +
-  geom_point(data = trait_summary %>% filter(Trait.Group != "Survival"), inherit.aes = FALSE, aes(x = mean_e, y = Trait.Group),
+  geom_point(data = trait_summary, inherit.aes = FALSE, aes(x = mean_e, y = Trait.Group),
              shape = 21, size = 1.5, fill = "red", alpha = .7, position = position_nudge(y = -0.15)) +
-  geom_point(data = trait_summary %>% filter(Trait.Group != "Survival"), inherit.aes = FALSE, aes(x = median_e, y = Trait.Group),
+  geom_point(data = trait_summary, inherit.aes = FALSE, aes(x = median_e, y = Trait.Group),
              shape = 23,size = 1.5, fill = "grey", alpha = .7,  position = position_nudge(y = -0.15)) +
   labs(x = "Activation energy (e)", y = NULL) +
   scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
@@ -215,7 +213,7 @@ act_eng_collapsed <- act_eng %>%
   select(study_ID, species_ID, latitude, Trait.Group, averaged_e, averaged_pbreadth, averaged_tbreadth) %>%
   distinct()
 
-length(unique(act_eng_collapsed$averaged_e)) #82
+length(unique(act_eng_collapsed$averaged_e)) #83
 length(unique(act_eng_collapsed$averaged_pbreadth)) #31
 length(unique(act_eng_collapsed$averaged_tbreadth)) #11
 
@@ -366,7 +364,7 @@ library(emmeans)
 # Using the same example data and model as above
 model1 <- glm(averaged_e ~ Trait.motivation, data = average_ee_TM)
 motivation_Ea_model <- glm(averaged_e ~ Trait.motivation, data = average_ee_TM, family = Gamma(link = "log"))
-summary(model2)
+summary(motivation_Ea_model)
 
 AIC(model1, model2)
 means1 <- emmeans(model1, ~ Trait.motivation)
@@ -383,14 +381,20 @@ pairwise_contrasts2 <- pairs(response_Ea_model_pairwise)
 summary(pairwise_contrasts2)
 
 organization_Ea_model <- glm(averaged_e ~ organization, data = average_ee_TO, family = Gamma(link = "log"))
+
 summary(organization_Ea_model)
 organization_Ea_model_pairwise <- emmeans(organization_Ea_model, ~ organization)
 pairwise_contrasts3 <- pairs(organization_Ea_model_pairwise)
 summary(pairwise_contrasts3)
+library(sjPlot)
+library(webshot)
 
-tab_model(response_Ea_model, motivation_Ea_model, organization_Ea_model, show.stat = TRUE, file = "Ev~groups_models.html")
-webshot("Ev~groups_models.html", "Ev~groups_models.pdf")
-
+tab_model(response_Ea_model,show.se = TRUE, show.stat = TRUE, file = "Ev~response_type_models.html")
+tab_model(motivation_Ea_model,show.se = TRUE, show.stat = TRUE, file = "Ev~motivation_type_models.html")
+tab_model(organization_Ea_model,show.se = TRUE, show.stat = TRUE, file = "Ev~organization_type_models.html")
+webshot("Ev~response_type_models.html", "Ev~response_type_models.pdf")
+webshot("Ev~motivation_type_models.html", "Ev~motivation_type_models.pdf")
+webshot("Ev~organization_type_models.html", "Ev~organization_type_models.pdf")
 library(dplyr)
 library(emmeans)
 library(knitr)
