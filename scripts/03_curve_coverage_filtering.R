@@ -340,6 +340,7 @@ dataset_types <- distinct_curves %>%
 #### 08. OUTPUT ####
 curves <- curves %>%
   left_join(dataset_types, join_by(curve_ID))
+
 write.csv(curves, file = here('processed-data', "fishtherm_curve_coverage_sorted.csv"))
 
 
