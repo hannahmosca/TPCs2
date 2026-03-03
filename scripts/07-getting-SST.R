@@ -100,7 +100,7 @@ library(tidyterra)
   point_vals <- point_vals %>%
     dplyr::select(latitude, longitude, everything())
   
-  saveRDS(point_vals, file = here("processed-data", "marine_sst_all_temporal_mypoints17_12_2025.RDS"))
+  saveRDS(point_vals, file = here("processed-data", "marine_sst_all_temporal_mypoints.RDS"))
   
   ## computing summary stats across layers
   mean_raster <- app(sst_monthly, mean, na.rm = TRUE)
@@ -137,7 +137,7 @@ library(tidyterra)
  
   
 #### 04: make map of overlaid point data ####
-  df <- as.data.frame(sst, xy = TRUE, na.rm = TRUE)
+  df <- as.data.frame(sst_summary, xy = TRUE, na.rm = TRUE)
   
   d <-  ggplot(df) +
     geom_raster(aes(x = x, y = y, fill = mean), interpolate = TRUE) +
@@ -147,19 +147,16 @@ library(tidyterra)
     theme_void() +
     theme(legend.position = "bottom")
   d
-  ## save map
-  ggsave("marine_sst_mean_map_points.pdf", plot = d, path = here("figures"), width = 8, height = 5)
-  
-  
+
   #### 05 extract my point data ####
   
   #extract points from non discharge masked data
-  point_means <- terra::extract(sst[[1]], new_my_points, method = "simple", search_radius = 30000)
-  point_sd <- terra::extract(sst[[2]], new_my_points, method = "simple", search_radius = 30000)
-  point_min <- terra::extract(sst[[3]], new_my_points, method = "simple", search_radius = 30000)
-  point_max <- terra::extract(sst[[4]], new_my_points, method = "simple", search_radius = 30000)
-  point_q2.5 <- terra::extract(sst[[5]], new_my_points, method = "simple", search_radius = 30000)
-  point_q97.5 <- terra::extract(sst[[6]], new_my_points, method = "simple", search_radius = 30000)
+  point_means <- terra::extract(sst_summary[[1]], new_my_points, method = "simple", search_radius = 30000)
+  point_sd <- terra::extract(sst_summary[[2]], new_my_points, method = "simple", search_radius = 30000)
+  point_min <- terra::extract(sst_summary[[3]], new_my_points, method = "simple", search_radius = 30000)
+  point_max <- terra::extract(sst_summary[[4]], new_my_points, method = "simple", search_radius = 30000)
+  point_q2.5 <- terra::extract(sst_summary[[5]], new_my_points, method = "simple", search_radius = 30000)
+  point_q97.5 <- terra::extract(sst_summary[[6]], new_my_points, method = "simple", search_radius = 30000)
   
   #combine to get summary stats of mypoints data
   all <- cbind(point_means, point_sd, point_min, point_max, point_q2.5, point_q97.5) %>% select(mean, sd, min, max, q2.5, q97.5)
@@ -171,7 +168,4 @@ library(tidyterra)
   ## save my point data
   saveRDS(all, file = here("processed-data", "sst_temperatures_my_points.RDS"))
   
-  
-  
-  point_temps <- readRDS(here("processed-data", "marine_sst_all_temporal_mypoints.RDS"))
   
