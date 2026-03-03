@@ -102,6 +102,7 @@ library(tidyterra)
   
   saveRDS(point_vals, file = here("processed-data", "marine_sst_all_temporal_mypoints.RDS"))
   
+  
   ## computing summary stats across layers
   mean_raster <- app(sst_monthly, mean, na.rm = TRUE)
   sd_raster <- app(sst_monthly, sd, na.rm = TRUE)
@@ -149,7 +150,7 @@ library(tidyterra)
   d
 
   #### 05 extract my point data ####
-  
+
   #extract points from non discharge masked data
   point_means <- terra::extract(sst_summary[[1]], new_my_points, method = "simple", search_radius = 30000)
   point_sd <- terra::extract(sst_summary[[2]], new_my_points, method = "simple", search_radius = 30000)
@@ -166,6 +167,6 @@ library(tidyterra)
   
   
   ## save my point data
-  saveRDS(all, file = here("processed-data", "sst_temperatures_my_points.RDS"))
+  saveRDS(all, file = here("processed-data", "my_points_sst_summary.RDS"))
   
   
