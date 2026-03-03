@@ -7,7 +7,7 @@
 #   Cleans and processes raw thermal performance data extracted
 #   from the literature. Filters for wild fish only, standardizes
 #   variables, categorizes trait types, generates unique curve IDs,
-#   and outputs cleaned datasets ready for TPC fitting.
+#   and outputs cleaned database of tpcs ready to be fit
 #### ============================================================
 
 rm(list=ls())
@@ -60,7 +60,6 @@ data <- data %>%
       response_type == "feeding rate" ~ "feeding-rate",
       TRUE ~ response_type))
 
-#### 4. categorize responses into response/trait groups ####
 ## remove non-performance traits
 data <- data %>%
   filter(!response_type %in% c(
@@ -69,7 +68,7 @@ data <- data %>%
     "total-time-following-females", "total-food-consumed"
   ))
 
-#### 6. generate curve IDs for mean response curves ####
+#### 4. generate curve IDs for mean response curves ####
 
 #filtering out mean response tpcs
 mean_tpcs <- data %>%
@@ -94,7 +93,7 @@ mean_tpcs <- data %>%
 length(unique(mean_tpcs$curve_ID)) # 415
 
 
-#### 7. generate curve IDs for individual response curves ####
+#### 5. generate curve IDs for individual response curves ####
 ind_tpcs <- data %>%
   filter(response_ind != "n/a")%>%
   filter(!is.na(response_ind))
@@ -117,7 +116,7 @@ ind_tpcs <- ind_tpcs %>%
 length(unique(ind_tpcs$curve_ID)) #40 
 
 
-#### 8. generate curve IDs for other sample response curves ####
+#### 6. generate curve IDs for other sample response curves ####
 #filter datasets that report a median value
 median_tpcs <- data %>%
   filter(!is.na(response_median)) %>%
@@ -165,16 +164,15 @@ min_max_tpcs <- min_max_tpcs %>%
 
 length(unique(min_max_tpcs$curve_ID)) #1
 
-####9. combine dataframes back together and save ####
+####7. combine dataframes back together and save ####
 curves <- rbind(mean_tpcs, ind_tpcs, median_tpcs) #not adding min/max response dataset 
 
-### make sure all datasets have >3 temps 1 deg. apart
+#### 8. make sure all datasets have >3 temps 1 deg. apart #### 
 curves <- curves %>%
   group_by(curve_ID) %>%
   mutate(
     # sort unique temps for each curve
     sorted_temps = list(sort(unique(test_temp))),
-    
     # count how many temps are at least 1 deg apart
     n_unique_temps = map_int(sorted_temps, function(temps) {
       distinct <- temps[1]
@@ -192,7 +190,7 @@ curves <- curves %>%
   filter(n_unique_temps > 3)
 length(unique(curves$curve_ID)) #457 
 
-#make a response_value category 
+#### 9. make a response_value category ####
 #make sure all are numeric
 curves <- curves %>%
   mutate(response_ind = as.numeric(response_ind)) %>%
@@ -208,25 +206,43 @@ curves <- curves %>%
   )) %>%
   select(curve_ID, study_ID, species_ID, curve_type, response_type, test_temp, response_value, response_curve_type, everything())
 
-## un-log transform responses that are logged
-##need to check these curves to make sure i dont need to refit.
+#### 10. transforming data that is logged or needs to be inversed #### 
+
+## un-log
 curves <- curves %>%
   mutate(response_value = ifelse(response_type %in% c("log-SMR", "log-active-metabolic-rate", "log-metabolic-scope"),
                                  10^response_mean, response_value))
-#transform the natural logged one
+#un-natural log
 curves <- curves %>%
   mutate(response_value = ifelse(response_type == "ln-whole-oxygen-embryo-consumption",
                                  exp(response_mean), response_value))
-
+#development time--> development rate
 curves <- curves %>%
   mutate(response_value = ifelse(response_type == "development-rate",
                                  1/response_ind, response_value)) %>%
   mutate(response_unit = ifelse(response_type == "development-rate", "1/days", response_unit))
 
+#mortality becomes survival
+curves <- curves %>%
+  mutate(response_value = if_else(response_type %in% c("percent-mortality", "mortality"),
+                                  100 - response_value, response_value),
+      response_type = if_else(response_type %in% c("percent-mortality", "mortality"),
+                              "percent-survival", response_type))
+#predation time --> predation rate
+curves <- curves %>%
+  mutate(response_value = if_else(response_type %in% c("handling-time", "capture-manuever-time"),
+                                  1/response_value, response_value))
+curves <- curves %>%
+  mutate(response_unit = if_else(response_type == "handling-time", "(s/prey)^1",
+                                 response_unit))
+curves <- curves %>%
+  mutate(response_unit = if_else(response_type == "capture-manuever-time", "1/s",
+                                 response_unit))
+
 curves <- curves %>%
   select(curve_ID, response_type, response_value, response_mean, response_ind, response_unit, everything())
 
-
+#### 11. match responses to their ontology ####
 response_new_names <- read.csv(here("raw-data", "raw_response_categories.csv"))
 response_ontology <- read.csv(here("raw-data", "raw_response_ontology.csv")) %>%
   rename(given_trait_name = Trait.Name) %>%
@@ -253,47 +269,9 @@ curves_new <- curves_new %>%
     Trait.Group == "Energy aquisition"~ "Energy Aquisition",
     TRUE                             ~ Trait.Group
   ))
-####handle survival and mortality curves in this script #### 
-curves_new <- curves_new %>%
-  mutate(
-    # convert to survival only for mortality curves
-    response_value = if_else(
-      response_type %in% c("percent-mortality", "mortality"),
-      100 - response_value,   
-      response_value          
-    ),
-    response_type = if_else(
-      response_type %in% c("percent-mortality", "mortality"),
-      "percent-survival",
-      response_type
-    ))
-
-####handle predation time curves #### 
-
-curves_new <- curves_new %>%
-  mutate(
-    response_value = if_else(
-      response_type %in% c("handling-time", "capture-manuever-time"),
-      1/response_value,   
-      response_value          
-    ))
-#updating units
-
-curves_new <- curves_new %>%
-  mutate(
-    response_unit = if_else(
-      response_type == "handling-time", "(s/prey)^1",   
-      response_unit          
-    ))
-curves_new <- curves_new %>%
-  mutate(
-    response_unit = if_else(
-      response_type == "capture-manuever-time", "1/s",   
-      response_unit          
-    ))
 
 
-#### 5. clean and classify habitats ####
+#### 12. clean and classify habitats ####
 # tidying habitat information
 curves_new <- curves_new %>%
   mutate(habitat = if_else(habitat == "coral reef", "reef", habitat)) %>%
@@ -317,7 +295,7 @@ curves_new <- curves_new %>%
     TRUE ~ NA
   ))
 
-####10. make sure lat/long is numeric ####
+####13. make sure lat/long is numeric ####
 curves_new <- curves_new %>%
   mutate(across(c(response_value, latitude, longitude), as.numeric)) %>%
   mutate(abs_latitude = abs(latitude))
@@ -325,7 +303,7 @@ curves_new <- curves_new %>%
 length(unique(curves_new$study_ID)) #118
 length(unique(curves_new$species_ID)) #107
 
-#### cleaning up other characteristics ####
+#### 14. cleaning up other characteristics ####
 #life stage tested
 curves_new <- curves_new %>%
   mutate(life_stage_tested = ifelse(life_stage_tested == "juvenile ", "juvenile", life_stage_tested)) %>%
@@ -357,10 +335,14 @@ curves_new <- curves_new %>%
 
 length(unique(curves_new$curve_ID)) #457 unique curve_IDs
 
-check <- curves_new %>%
-  select(curve_ID, Trait.motivation, Trait.Group, given_trait_name, response_type, response_unit) %>%
-  distinct()
+curves_new <- curves_new %>%
+  rename(raw_response_type = response_type) %>%
+  rename(response_sample_type = response_curve_type) %>%
+  select(-(n_temps))
 
+curves_new <- curves_new %>%
+  select(curve_ID, species_ID, study_ID, habitat_water, given_trait_name, Trait.Group, Trait.motivation, organization, test_temp, n_unique_temps, response_value, response_unit, curve_type, response_sample_type, response_mean, response_ind, response_median, min_response, max_response, everything())
 
+write.csv(curves_new, file = here("processed-data", "FishTherm.csv"))
 saveRDS(curves_new, file = here("processed-data", "wild-tpcs-clean.RdS"))
 
