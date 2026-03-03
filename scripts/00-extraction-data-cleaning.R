@@ -2,7 +2,6 @@
 #### Script info
 #### ============================================================
 # Title: extraction-data-processing.R
-# Author: Hannah Mosca
 # Description:
 #   Cleans and processes raw thermal performance data extracted
 #   from the literature. Filters for wild fish only, standardizes
@@ -338,11 +337,30 @@ length(unique(curves_new$curve_ID)) #457 unique curve_IDs
 curves_new <- curves_new %>%
   rename(raw_response_type = response_type) %>%
   rename(response_sample_type = response_curve_type) %>%
-  select(-(n_temps))
+  select(-(n_temps)) %>%
+  rename(notes_while_extracting = note)
 
-curves_new <- curves_new %>%
-  select(curve_ID, species_ID, study_ID, habitat_water, given_trait_name, Trait.Group, Trait.motivation, organization, test_temp, n_unique_temps, response_value, response_unit, curve_type, response_sample_type, response_mean, response_ind, response_median, min_response, max_response, everything())
-
-write.csv(curves_new, file = here("processed-data", "FishTherm.csv"))
+FishTherm <- curves_new %>%
+  select(curve_ID, species_ID, study_ID, habitat_water, given_trait_name, Trait.Group, Trait.motivation, organization,
+         test_temp, n_unique_temps, response_value, response_unit, curve_type, response_sample_type, raw_response_type,
+         cohort_ID,individual_ID,sex, metric_body_length,mean_body_length, individual_body_length,body_length_units,
+         mean_body_length_error, mean_body_length_error_units, min_body_length, max_body_length, individual_body_mass,
+         mean_body_mass, body_mass_units, mean_body_mass_error, mean_body_mass_upper_error, mean_body_mass_lower_error,
+         mean_body_mass_error_units, body_mass_min, body_mass_max, initial_mean_body_length, initial_mean_body_length_unit,
+         initial_mean_body_length_error, initial_mean_body_length_error_unit, initial_mean_body_mass, initial_mean_body_mass_unit,
+         initial_mean_body_mass_error, initial_mean_body_mass_error_unit, body_mass_type, mean_age, mean_age_unit, mean_age_error,
+         mean_age_error_unit, number_of_fish_per_tank, number_of_observations_on_which_the_reported_mean_and_error_is_calculated, 
+         number_of_independent_replicates_of_treatment_temperature..this.will.be.1.if.pseudoreplicated.or.every.tank.was.entered.on.a.separate.line.,
+         notes_about_sample_size_and_replication, percent_survival, percent_survival_error, percent_survival_error_unit, 
+         initial_sample_size, final_sample_size, acclim_time_total_days, acclim_time_min_days, acclim_time_max_days, acclim_time_median,
+         post_acclim_exposure_duration, post_acclim_exposure_duration_unit, duration_of_study_days, acclim_time_error, acclim_time_error_unit,                                                                                                         
+         acclim_temp, acclim_temp_error, acclim_temp_error_unit, test_temp_error, test_temp_error_unit, temp_units, life_stage_manip, life_stage_tested,
+         experiment_design_notes, treatment_1_type, treatment_1_group, treatment_1_group_units, treatment_1_group_error,
+         treatment_1_group_error_units, treatment_2_type, treatment_2_group, treatment_2_group_units, treatment_2_group_error, treatment_2_group_error_units,
+         response_mode, equation_used, response_error, response_upper_error, response_lower_error, response_error_unit, latitude, longitude, lat_long_units, lat_long_method,
+        collection_site, habitat, habitat_source, land_or_sea, abs_latitude, notes_while_extracting, data_source, fig_file_name, 
+        extraction_method, data_type, animal_maintenance_notes, field_or_lab)
+        
+write.csv(FishTherm, file = here("processed-data", "FishTherm.csv"))
 saveRDS(curves_new, file = here("processed-data", "wild-tpcs-clean.RdS"))
 
