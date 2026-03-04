@@ -1067,9 +1067,12 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 resid_topt_perbreadth_graph <- ggplot(data = pred_grid, aes(x = averaged_pbreadth)) +
   geom_point(data = topts %>%
-               filter(!is.na(averaged_pbreadth)), aes(x = averaged_pbreadth, y = resid_topt_lat), color = "darkgrey", size = 2, alpha = .65) +
+               filter(!is.na(averaged_pbreadth)), aes(x = averaged_pbreadth, y = resid_topt_lat, color = enviornment), size = 2, alpha = .65) +
   geom_line(aes(y = pred), color = "black", alpha = .8) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "black", alpha = 0.20) +
+  scale_color_manual(
+    name = "Environment",
+    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")) +
   labs(x = "Performance Breadth", y = "Topt-adjusted for latitude") +
   theme_classic(base_size = 16) +
   theme(legend.position = "none")
@@ -1118,9 +1121,13 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 resid_topt_tolbreadth_graph <- ggplot(data = pred_grid, aes(x = averaged_tbreadth)) +
   geom_point(data = topts %>%
-               filter(!is.na(averaged_tbreadth)), aes(x = averaged_tbreadth, y = resid_topt_lat), color = "darkgrey", size = 2, alpha = .65) +
+               filter(!is.na(averaged_tbreadth)), aes(x = averaged_tbreadth, y = resid_topt_lat, color = enviornment), size = 2, alpha = .65) +
   geom_line(aes(y = pred), color = "black", alpha = .8) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "black", alpha = 0.20) +
+  scale_color_manual(
+    name = "Environment",
+    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+  ) +
   labs(x = "Tolerance Breadth", y = "Topt-adjusted for latitude") +
   theme_classic(base_size = 16) +
   theme(legend.position = "none")
@@ -1130,6 +1137,6 @@ adj_topt_breadth
 
 ggsave("adjusted_topt_breadth_lin_mod.png", plot = adj_topt_breadth, path = here("figures"), width = 7, height = 4)
 
-tab_model(tol_breadth_topt, resid_topt_tol, per_breadth_topt, resid_topt_perbreadth, show.stat = TRUE, show.se = TRUE)
+tab_model(resid_topt_tol, resid_topt_perbreadth, show.stat = TRUE, show.se = TRUE)
 
 
