@@ -25,39 +25,21 @@ The following are all of the R scripts contained in this repository and a short 
 #### 02-TPCrtpc-fitting.R 
  - Fits all datasets with all three and four parameter models in the [rtpc package](https://github.com/padpadpadpad/rTPC)
 #### 03_curve_coverage_filtering.R
-- Classifies each FishTherm curve by curve coverage (e.g., full curve, T-min only, T-max only, T-opt only, bounded-with-optimum, unbounded) using scaled responses and simple shape/boundedness rules, along with visualizingm then writes curve-type labels and coverage flags back to a processed dataset.
+ - Classifies each FishTherm curve by curve coverage (e.g., full curve, T-min only, T-max only, T-opt only, bounded-with-optimum, unbounded) using scaled responses and simple shape/boundedness rules, along with visualizingm then writes curve-type labels and coverage flags back to a processed dataset.
 #### 04-selecting-valid-models-and-deriving-params.
--  Filters candidate thermal performance curve (TPC) models to retain biologically reasonable fits and selects the top-ranked model(s) per curve. Outputs a dataset of tpc parameters
+ -  Filters candidate thermal performance curve (TPC) models to retain biologically reasonable fits and selects the top-ranked model(s) per curve. Outputs a dataset of tpc parameters
 #### 05-fit-arrhenius-activation-energy.R
--  Estimates Arrhenius activation energy (Ea) for FishTherm curves by fitting an Arrhenius relationship to the increasing-temperature portion of each dataset (temperatures ≤ fitted topt)
-#### [07_quantifying-niche-filling.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/07_quantifying-niche-filling.R)
-- measures potential thermal niche filling in thermal space
-#### [08_quantifying-range-filling.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/08_quantifying-range-filling.R)
-- measures potential thermal range filling in geographic space
-#### [09_model-selection_niche.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/09_model-selection_niche.R)
-- fits models to warm and cool niche filling and plots predictions
-#### [10_model-selection_range.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/10_model-selection_range.R)
-- fits models to range filling and asymmetry in underfilling and plots predictions
-#### [11_sensitivity_model-selection_niche.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/11_sensitivity_model-selection_niche.R)
-- checks sensitivity of warm and cool niche filling results to behaviour and acclimatisation
-#### [12_sensitivity_model-selection_range.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/12_sensitivity_model-selection_range.R)
-- checks sensitivity of range filling and asymmetry in underfilling results to acclimatisation
-#### [13_sensitivity_model-selection_niche_no-dormancy.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/13_sensitivity_model-selection_niche_no-dormancy.R)
-- checks sensitivity of warma and cool niche filling results to exclusion of dormant species 
-#### [14_sensitivity_model-selection_range_no-dormancy.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/14_sensitivity_model-selection_range_no-dormancy.R)
-- checks sensitivity of range filling and asymmetry in underfilling results to exclusion of dormant species 
-#### [15_sensitivity_range-source.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/15_sensitivity_range-source.R)
-- checks sensitivity of warm and cool niche filling results to realized range source 
-#### [16_niche-filling-figures.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/16_niche-filling-figures.R)
-- creates warm and cool niche filling figures
-#### [17_range-filling-figures.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/17_range-filling-figures.R)
-- creates range filling figures
-#### [18_sensitivity_NicheMapR.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/18_sensitivity_NicheMapR.R)
-- tests sensitivity of results on land to parameters used in operative temperature models
-#### [19_phylo-gls-sensitivity-analysis.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/19_phylo-gls-sensitivity-analysis.R)
-- tests sensitivity of results to choice of method used to control for evolutionary relatedness
-#### [20_create-minimum-dataset.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/20_create-minimum-dataset.R)
-- creates a minimum dataset needed to reproduce main analyses
-  
-## Ownership
-This reposity is owned by Nikki A. Moore and Jennifer M. Sunday. All data, scripts, and figures may be used by others with proper acknowledgement.
+ -  Estimates Arrhenius activation energy (Ea) for FishTherm curves by fitting an Arrhenius relationship to the increasing-temperature portion of each dataset (temperatures ≤ fitted topt)
+#### 06-extracting-SST.R
+ - Builds a monthly sea-surface temperature (SST) raster time series from the NOAA monthly mean NetCDF (sst.mon.mean.nc), subsets the record to match the FishTherm study window (1982-01 to 2025-09), replaces fill values with NA, and writes a processed NetCDF. Then computes long-term SST summary rasters (mean, sd, min, max, 2.5% and 97.5% quantiles) across all months in the window, maps sampling locations, and extracts summary statistics at unique marine study coordinates.
+#### 07-extracting-future-streams-temp.R
+ -  Processes weekly freshwater stream temperature rasters (FutureStreams) into monthly mean temperatures for the FishTherm study window (1982-01 to 2025-09). Computes long-term freshwater summary rasters (mean, sd, min, max, 2.5% and 97.5% quantiles) across all months in the window, maps sampling locations, and extracts summary statistics at unique freshwater study coordinates.
+#### 08-enviornmentaltemp-and-performance.R
+- hypothesis-testing / model-fitting script that joins fitted TPC parameters to environmental temperature summaries, collapses curves to reduce pseudoreplication, then runs a set of mixed-effects regressions on thermal performance parameters 
+#### 09-activation-energy-and-performance-type.R
+ - Analyzes fitted activation energy estimates (Ev) across response contexts in FishTherm
+#### 10-topt_resid_and_performance_type.R
+ - Analyzes residual variation in topt across response contexts in FishTherm
+#### 11-bicycleplot_top_down_view_of_tpcs.R
+ - Produces top down views of tpcs
+
