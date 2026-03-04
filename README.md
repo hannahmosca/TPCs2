@@ -6,7 +6,7 @@ All scripts are organized to allow the analyses and figures in the manuscript to
 
 ## Data 
 FishTherm Database
- - [FishTherm]()
+ - [FishTherm](https://github.com/hannahmosca/TPCs2/blob/main/processed-data/FishTherm.csv)
  
 A minimum dataset needed to reproduce all main analyses and large files that cannot be hosted on Github can be downloaded from these links here.
   

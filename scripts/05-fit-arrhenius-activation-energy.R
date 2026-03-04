@@ -1,6 +1,15 @@
-#### adapted rtpc arh funditon to get activaiton energy####
-## load packages
-
+#### ============================================================
+#### Script info
+#### ============================================================
+# Title: fit-arrhenius-activation-energy.R
+# Description:
+#   Estimates Arrhenius activation energy (Ea) for FishTherm curves by fitting an
+#   Arrhenius relationship to the increasing-temperature portion of each dataset
+#   (temperatures ≤ fitted topt). Temperatures are converted to Kelvin when needed.
+#   Curves are filtered to those with sufficient data and (optionally) to a set of
+#   visually screened curve IDs. Fits are performed with nonlinear least squares,
+#   and poor fits are removed using convergence, R², and p-value thresholds.
+#
 install.packages("rTPC")
 library(rTPC)
 

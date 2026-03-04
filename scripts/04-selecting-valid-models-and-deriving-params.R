@@ -1,8 +1,7 @@
-#### script for filtering models and datasets for analysis ####
-#### load packages and data ####
-####
-
-#clean env and load packages
+# title: selecting-valid-models-and-deriving-params.R
+# Description:
+#   Filters candidate thermal performance curve (TPC) models to retain
+#   biologically reasonable fits and selects the top-ranked model(s) per curve. Outputs a dataset of tpc parameters
 
 rm(list=ls())
 library(here)
