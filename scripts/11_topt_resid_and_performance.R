@@ -1,4 +1,12 @@
-### topt residuals split by response type ###
+# ============================================================
+# ## Title: topt_resid_and_performance.R
+# Description:
+# Analyzes fitted topt estimates across response
+# contexts in FishTherm. Joins fitted parameters to curve metadata,
+# averages topt within study/species groups, summarizes residual topt lat models  by response
+# type, motivation, and biological organization, generates ridgeplot
+# figures with mean/median and 95% CIs, and tests group differences
+# ============================================================
 install.packages("lmerTest")
 library(lme4)
 library(lmerTest)
@@ -9,7 +17,7 @@ library(dplyr)
 library(tidyverse)
 
 rm(list=ls())
-#load data
+#### 01. load and join data ####
 params <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng.RDS'))
 curves <- read.csv(here('processed-data', 'FishTherm.csv'))
 
@@ -17,19 +25,18 @@ params <- params %>%
   left_join(curves %>% select(species_ID, curve_ID, organization), join_by(curve_ID)) %>%
   distinct() 
 
-#make custum order/all categorizing things factors#
-fitted_datasets <- fitted_datasets %>%
+# set factor levels for consistent ordering in plots/models
+params <- params %>%
   mutate(Trait.Group = factor(Trait.Group, levels = c("Metabolism", "Energy Aquisition", "Somatic Growth", "Locomotion", "Reproduction", "Survival"))) %>%
   mutate(Trait.motivation = factor(Trait.motivation, levels = c("negative", "voluntary", "autonomic", "positive"))) %>%
   mutate(organization = factor(organization, levels = c("internal", "individual", "interaction", "population")))
 
+#### 02. collapse within study/species/latitude by grouping variables ####
 
-#### Averaging topt by trait group only ####
-average_topts_TG <- fitted_datasets %>%
-  left_join(curves %>% select(curve_ID, species_ID)) %>%
-  distinct() %>%
+# averaging topt by trait group only
+average_topts_TG <- params %>%
   filter(topt_TF == TRUE) %>%
-  group_by(study_ID, species_ID, latitude, Trait.Group) %>% ## could also try cohort 
+  group_by(study_ID, species_ID, latitude, Trait.Group) %>% 
   mutate(averaged_topt = mean(topt)) %>%
   ungroup()
 
@@ -37,18 +44,16 @@ average_topts_TG <- average_topts_TG %>%
   select(study_ID, Trait.Group, species_ID, averaged_topt, abs_latitude, latitude, land_or_sea) %>%
   distinct() #134
 
-
+# run mixed effect model to get topt-resids to account for latitude, realm, and study ID #
 lat_avtopt_TG_model <- lmer(averaged_topt ~ abs_latitude * land_or_sea + (1 | study_ID), 
                          data = average_topts_TG)
 
 summary(lat_avtopt_TG_model)
 average_topts_TG$resid_topt_lat = residuals(lat_avtopt_TG_model)
 
-#### Averaging topt by trait group and motivation ####
+## averaging topt by trait group and motivation ##
 
-average_topts_TM <- fitted_datasets %>%
-  left_join(curves %>% select(curve_ID, species_ID)) %>%
-  distinct() %>%
+average_topts_TM <- params %>%
   filter(topt_TF == TRUE) %>%
   group_by(study_ID, species_ID, latitude, Trait.Group, Trait.motivation) %>% ## could also try cohort 
   mutate(averaged_topt = mean(topt)) %>%
@@ -56,7 +61,7 @@ average_topts_TM <- fitted_datasets %>%
 
 average_topts_TM <- average_topts_TM %>%
   select(study_ID, Trait.Group, Trait.motivation, species_ID, averaged_topt, abs_latitude, latitude, land_or_sea) %>%
-  distinct() #148
+  distinct() #147
 
 
 lat_avtopt_TM_model <- lmer(averaged_topt ~ abs_latitude * land_or_sea + (1 | study_ID), 
@@ -65,11 +70,9 @@ lat_avtopt_TM_model <- lmer(averaged_topt ~ abs_latitude * land_or_sea + (1 | st
 summary(lat_avtopt_TM_model)
 average_topts_TM$resid_topt_lat = residuals(lat_avtopt_TM_model)
 
-#### Averaging topt by trait group and motivation and organization####
+##averaging topt by trait group and motivation and organization## 
 
-average_topts_TO <- fitted_datasets %>%
-  left_join(curves %>% select(curve_ID, species_ID)) %>%
-  distinct() %>%
+average_topts_TO <- params %>%
   filter(topt_TF == TRUE) %>%
   group_by(study_ID, species_ID, latitude, Trait.Group, Trait.motivation, organization) %>% ## could also try cohort 
   mutate(averaged_topt = mean(topt)) %>%
@@ -77,7 +80,7 @@ average_topts_TO <- fitted_datasets %>%
 
 average_topts_TO <- average_topts_TO %>%
   select(study_ID, Trait.Group, Trait.motivation, organization, species_ID, averaged_topt, abs_latitude, latitude, land_or_sea) %>%
-  distinct() #150
+  distinct() #149
 
 
 lat_avtopt_TO_model <- lmer(averaged_topt ~ abs_latitude * land_or_sea + (1 | study_ID), 
@@ -85,6 +88,8 @@ lat_avtopt_TO_model <- lmer(averaged_topt ~ abs_latitude * land_or_sea + (1 | st
 
 summary(lat_avtopt_TO_model)
 average_topts_TO$resid_topt_lat = residuals(lat_avtopt_TO_model)
+
+#### 03. summaries (mean/median/SE/95% CI) for overlay on ridge plots ####
 
 
 TG_sum <- average_topts_TG %>%
@@ -121,8 +126,7 @@ TO_sum <- average_topts_TO %>%
 
 global_x_limits <- c(-20, 10)
 library(ggridges)
-trait.groups <- ggplot(average_topts_TG, aes(x = resid_topt_lat, y = Trait.Group,  # reorder on the fly
-                                                                                fill = Trait.Group)) +
+trait.groups <- ggplot(average_topts_TG, aes(x = resid_topt_lat, y = Trait.Group, fill = Trait.Group)) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
   geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = .65) +
   geom_point(aes(y = Trait.Group), shape = 73, size = 2.5, alpha = .4) +
@@ -210,81 +214,51 @@ combined_figure
 ggsave("topt-and-lat-resid-combined.pdf", plot = combined_figure, path = here("figures"), width = 5, height = 9)
 
 
-#### Do the groups differ in mean activation energies (ANOVA) ####
-average_topts_TG <- average_topts_TG %>%
-  mutate(Trait.Group = factor(Trait.Group, levels = c("Metabolism", "Locomotion", "Energy Aquisition", "Somatic Growth", "Reproduction", "Survival")))
-trait_resid_topt_mod <- glm(resid_topt_lat ~ Trait.Group, data = average_topts_TG)
-summary(trait_resid_topt_mod)
+#### 04. Do the groups differ in topt (ANOVA) ####
 
-plot(residuals(trait_resid_topt_mod))
-qqnorm(resid(trait_resid_topt_mod))
-qqline(resid(trait_resid_topt_mod))
-hist(resid(trait_resid_topt_mod))
-summary(trait_resid_topt_mod)
-
-average_topts_TM <- average_topts_TM %>%
-  mutate(Trait.motivation = factor(Trait.motivation, levels = c("negative", "voluntary", "positive", "autonomic"))) 
-motivation_resid_topt_mod <- glm(resid_topt_lat ~ Trait.motivation, data = average_topts_TM)
-summary(motivation_resid_topt_mod)
-
-average_topts_TO <- average_topts_TO %>%
-  mutate(organization = factor(organization, levels = c("internal", "individual", "interaction", "population"))) 
-organization_resid_topt_mod <- glm(resid_topt_lat ~ organization, data = average_topts_TO)
-summary(organization_resid_topt_mod)
-
-
-install.packages("remotes")
-remotes::install_github("rvlenth/emmeans")
-install.packages("emmeans")
+## response type ##
 library(emmeans)
-# Using the same example data and model as above
 
-means1 <- emmeans(trait_resid_topt_mod, ~ Trait.Group)
-means2 <- emmeans(motivation_resid_topt_mod, ~ Trait.motivation)
-means3 <- emmeans(organization_resid_topt_mod, ~ organization)
+response_topt_model <- glm(resid_topt_lat ~ Trait.Group, data = average_topts_TG)
+summary(response_topt_model)
 
-# Get all pairwise contrasts from the means
-pairwise_contrasts1 <- pairs(means1)
-summary(pairwise_contrasts1)
-pairwise_contrasts2 <- pairs(means2)
-summary(pairwise_contrasts2)
-pairwise_contrasts3 <- pairs(means3)
-summary(pairwise_contrasts3)
+## pairwise contrast ##
+response_topt_model_pairwise <- emmeans(response_topt_model, ~ Trait.Group)
+pairwise_contrasts_response_topt_model <- pairs(response_topt_model_pairwise)
+summary(pairwise_contrasts_response_topt_model)
+
+## response motivation ##
+
+motivation_topt_model <- glm(resid_topt_lat ~ Trait.motivation, data = average_topts_TM)
+summary(motivation_topt_model)
+
+## pairwise contrast ##
+motivation_topt_model_pairwise <- emmeans(motivation_topt_model, ~ Trait.motivation)
+pairwise_contrasts_motivation_topt_model <- pairs(motivation_topt_model_pairwise)
+summary(pairwise_contrasts_motivation_topt_model)
+
+## response organizaiton ##
+
+organization_topt_model <- glm(resid_topt_lat ~ organization, data = average_topts_TO)
+summary(organization_topt_model)
+
+## pairwise contrast ##
+organization_topt_model_pairwise <- emmeans(organization_topt_model, ~ organization)
+pairwise_contrasts_organization_topt_model <- pairs(organization_topt_model_pairwise)
+summary(pairwise_contrasts_organization_topt_model)
 
 
 library(sjPlot)
 library(webshot)
-tab_model(trait_resid_topt_mod, motivation_resid_topt_mod, organization_resid_topt_mod, show.stat = TRUE, show.se = TRUE, file = "topt_resid~groups_models.html")
-webshot("topt_resid~groups_models.html", "topt_resid~groups_models.pdf")
 
-library(dplyr)
-library(emmeans)
-library(knitr)
+tab_model(response_topt_model,show.se = TRUE, show.stat = TRUE, file = "topt~response_type_models.html")
+tab_model(motivation_topt_model,show.se = TRUE, show.stat = TRUE, file = "topt~motivation_type_models.html")
+tab_model(organization_topt_model,show.se = TRUE, show.stat = TRUE, file = "topt~organization_type_models.html")
+webshot("topt~response_type_models.html", "topt~response_type_models.pdf")
+webshot("topt~motivation_type_models.html", "topt~motivation_type_models.pdf")
+webshot("topt~organization_type_models.html", "topt~organization_type_models.pdf")
 
-# Extract pairwise contrasts and convert to data frames
-df1 <- as.data.frame(summary(pairwise_contrasts1)) %>% mutate(model = "Ev ~ Motivation")
-df2 <- as.data.frame(summary(pairwise_contrasts2)) %>% mutate(model = "Ev ~ Response Type")
-df3 <- as.data.frame(summary(pairwise_contrasts3)) %>% mutate(model = "Ev ~ Organization")
 
-# Combine all three into one table
-combined_contrasts <- bind_rows(df2, df1, df3)
-
-# Select relevant columns and rename nicely
-combined_contrasts <- combined_contrasts %>%
-  select(model, contrast, estimate, SE, df, t.ratio, p.value)  # adjust column names based on what summary() gives
-# For glm contrasts, df and t.ratio may be NA, that's fine
-
-# Display table
-kable(combined_contrasts, digits = 3, caption = "Pairwise contrasts for all models")
-
-install.packages("kableExtra")
-library(kableExtra)
-install.packages("webshot2")
-library(webshot2)
-combined_contrasts %>%
-  kable("pdf", caption = "Pairwise contrasts for all models") %>%
-  kable_styling(full_width = FALSE) %>%
-  save_kable(here("figures", "pairwise_contrasts_table.pdf"))
 
 
 
