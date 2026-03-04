@@ -19,7 +19,7 @@ Freshwater Temperature data files can be downloaded here:
 ## Code
 The following are all of the R scripts contained in this repository and a short description of what each accomplishes:
 #### 00-extraction-data-processing.R 
- - Cleans and processes raw thermal performance data extracted from the literature. Filters for wild fish only, standardizes variables, categorizes trait types, generates unique curve IDs, and outputs cleaned database of tpcs ready to be fit
+ - Optional script: cleans and processes raw thermal performance data extracted from the literature. Filters for wild fish only, standardizes variables, categorizes trait types, generates unique curve IDs, and outputs cleaned database called FishTherm. All scripts after use FishTherm.csv, therefore this is script is optional to run but here for transparency
 #### 01-TPC-database-characteristics.R
  - Summarize FishTherm dataset characteristic
 #### 02-TPCrtpc-fitting.R 
