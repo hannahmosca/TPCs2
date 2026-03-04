@@ -18,18 +18,18 @@ Freshwater Temperature data files can be downloaded here:
 
 ## Code
 The following are all of the R scripts contained in this repository and a short description of what each accomplishes:
-#### [00-extraction-data-processing.R] 
+#### 00-extraction-data-processing.R 
  - Cleans and processes raw thermal performance data extracted from the literature. Filters for wild fish only, standardizes variables, categorizes trait types, generates unique curve IDs, and outputs cleaned database of tpcs ready to be fit
-#### [01-TPC-database-characteristics.R]
+#### 01-TPC-database-characteristics.R
  - Summarize FishTherm dataset characteristic
-#### [03_trait-wrangling.R] 
-- collates and cleans trait data for species incldued in the analysis
-#### [04_acclimatisation-analysis.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/04_acclimatisation-analysis.R)
-- collates and cleans pre-existing acclimation response ratio databases for use in the acclimatisation analysis 
-#### [05_modelling-operative-temperatures.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/05_modelling-operative-temperatures.R)
-- models operative temperatures in different microhabitat for terrestrial species 
-#### [06_creating-potential-ranges.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/06_creating-potential-ranges.R)
-- creates potential thermal ranges
+#### 02-TPCrtpc-fitting.R 
+ - Fits all datasets with all three and four parameter models in the [rtpc package](https://github.com/padpadpadpad/rTPC)
+#### 03_curve_coverage_filtering.R
+- Classifies each FishTherm curve by curve coverage (e.g., full curve, T-min only, T-max only, T-opt only, bounded-with-optimum, unbounded) using scaled responses and simple shape/boundedness rules, along with visualizingm then writes curve-type labels and coverage flags back to a processed dataset.
+#### 04-selecting-valid-models-and-deriving-params.
+-  Filters candidate thermal performance curve (TPC) models to retain biologically reasonable fits and selects the top-ranked model(s) per curve. Outputs a dataset of tpc parameters
+#### 05-fit-arrhenius-activation-energy.R
+-  Estimates Arrhenius activation energy (Ea) for FishTherm curves by fitting an Arrhenius relationship to the increasing-temperature portion of each dataset (temperatures ≤ fitted topt)
 #### [07_quantifying-niche-filling.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/07_quantifying-niche-filling.R)
 - measures potential thermal niche filling in thermal space
 #### [08_quantifying-range-filling.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/08_quantifying-range-filling.R)
