@@ -10,29 +10,13 @@ library(tidyverse)
 
 rm(list=ls())
 #load data
-fitted_datasets <- readRDS(here('processed-data', 'sorted_datasets_withparams.RDS')) %>%
-  select(!(c(Trait.Group, Trait.motivation))) 
-fitted_datasets <- fitted_datasets %>%
-  mutate(land_or_sea = ifelse(land_or_sea == "terrestrial", "freshwater", "marine"))
-curves <- readRDS(here('processed-data', 'wild-tpcsupdated.Rds')) %>%
-  mutate(Trait.Group = ifelse(Trait.Group == "survival", "Survival", Trait.Group)) %>%
-  mutate(Trait.Group = ifelse(Trait.Group == "reproduction", "Reproduction", Trait.Group)) %>%
-  mutate(Trait.Group = ifelse(Trait.Group == "somatic growth", "Somatic Growth", Trait.Group)) %>%
-  mutate(Trait.Group = ifelse(Trait.Group == "metabolism", "Metabolism", Trait.Group)) %>%
-  mutate(Trait.Group = ifelse(Trait.Group == "Energy aquisition", "Energy Aquisition", Trait.Group))
+params <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng.RDS'))
+curves <- read.csv(here('processed-data', 'FishTherm.csv'))
 
-fitted_datasets <- fitted_datasets %>%
-  left_join(curves %>% select(species_ID, curve_ID, Trait.Group, Trait.motivation, organization), join_by(curve_ID)) %>%
-  distinct() %>%
-  mutate(
-    land_or_sea = case_when(
-      land_or_sea == "freshwater" ~ "Freshwater",
-      land_or_sea == "marine"     ~ "Marine",
-      TRUE                        ~ land_or_sea))
+params <- params %>%
+  left_join(curves %>% select(species_ID, curve_ID, organization), join_by(curve_ID)) %>%
+  distinct() 
 
-
-fitted_datasets <- fitted_datasets %>%
-  mutate(organization = ifelse(Trait.Group == "Reproduction", "population", organization))
 #make custum order/all categorizing things factors#
 fitted_datasets <- fitted_datasets %>%
   mutate(Trait.Group = factor(Trait.Group, levels = c("Metabolism", "Energy Aquisition", "Somatic Growth", "Locomotion", "Reproduction", "Survival"))) %>%
