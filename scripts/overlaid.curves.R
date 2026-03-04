@@ -1,4 +1,4 @@
-#### all curves, 1 fig ####
+#### all curves ####
 rm(list = ls())
 predictions <- readRDS(here("processed-data", "top_model_predictions.RDS")) %>%
   select(-("dataset_type.y")) %>%
