@@ -1,5 +1,5 @@
 # ============================================================
-# ## Title: activation-energy-context-analysis.R
+# ## Title: activation-energy-performance-type.R
 # Description:
 # Analyzes fitted activation energy estimates (Ev) across response
 # contexts in FishTherm. Joins fitted parameters to curve metadata,
