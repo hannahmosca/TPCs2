@@ -1,5 +1,5 @@
 # ============================================================
-# ## Title: topt_resid_and_performance.R
+# ## Title: topt_resid_and_performance_type.R
 # Description:
 # Analyzes fitted topt estimates across response
 # contexts in FishTherm. Joins fitted parameters to curve metadata,
