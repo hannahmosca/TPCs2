@@ -824,12 +824,12 @@ ggplot(data = collapsed_params_unique %>%
   theme_classic()
 
 
-act_bread_model <- lmer(averaged_e ~ averaged_pbreadth  + (1 | study_ID), 
+act_pbreadth_model <- lmer(averaged_e ~ averaged_pbreadth  + (1 | study_ID), 
                            data = collapsed_params_unique %>% 
                           filter(!is.na(averaged_pbreadth)) %>%
                           filter(!is.na(averaged_e)))
 
-summary(act_bread_model)
+summary(act_pbreadth_model)
 
 ## want to make sure only predicting on range of data
 breadth_range <- collapsed_params_unique %>%
@@ -841,16 +841,16 @@ breadth_range <- collapsed_params_unique %>%
 breadth_range
 pred_grid <- data.frame(
   averaged_pbreadth = seq(breadth_range$min_pbreadth,
-                          breadth_range$max_pbreadth),
-             length.out = 200)
-pred_grid$pred <- predict(act_bread_model, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(act_bread_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
+                          breadth_range$max_pbreadth,
+             length.out = 200))
+pred_grid$pred <- predict(act_pbreadth_model, newdata = pred_grid, re.form = NA)
+pred_grid$se   <- predict(act_pbreadth_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
 
 pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
 pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 
-act_breadth <- ggplot(data = pred_grid, aes(x = averaged_pbreadth)) +
+act_pbreadth <- ggplot(data = pred_grid, aes(x = averaged_pbreadth)) +
   geom_point(data = collapsed_params_unique %>%
                filter(!is.na(averaged_pbreadth)) %>%
                filter(!is.na(averaged_e)), aes(x = averaged_pbreadth, y = averaged_e), color = "black", size = 2.5, alpha = .6) +
@@ -861,8 +861,8 @@ act_breadth <- ggplot(data = pred_grid, aes(x = averaged_pbreadth)) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
   theme_classic(base_size = 16) +
-  theme(legend.position = "none")
-act_breadth
+  theme(legend.position = "none") 
+act_pbreadth
 
 ggplot(data = collapsed_params_unique %>% 
          filter(!is.na(averaged_tbreadth)) %>%
@@ -892,9 +892,7 @@ breadth_range <- collapsed_params_unique %>%
     max_tbreadth = max(averaged_tbreadth))
 breadth_range
 pred_grid <- data.frame(
-  averaged_tbreadth = seq(breadth_range$min_tbreadth,
-                          breadth_range$max_tbreadth),
-  length.out = 200)
+  averaged_tbreadth = seq(breadth_range$min_tbreadth, breadth_range$max_tbreadth,length.out = 200))
 pred_grid$pred <- predict(act_tbread_model, newdata = pred_grid, re.form = NA)
 pred_grid$se   <- predict(act_tbread_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
 
@@ -915,11 +913,11 @@ act_tbreadth <- ggplot(data = pred_grid, aes(x = averaged_tbreadth)) +
   theme_classic(base_size = 16) +
   theme(legend.position = "none")
 
-Ae_breadth <- act_tbreadth + act_breadth
+Ae_breadth <- act_tbreadth + act_pbreadth
 Ae_breadth
 ggsave("Ae_breadth_lin_mod.pdf", plot = Ae_breadth, path = here("figures"), width = 7, height = 4)
 
-tab_model(act_bread_model, act_tbread_model, show.stat = TRUE, show.se = TRUE, file = "Ae_breadth_model_sums.html")
+tab_model(act_pbreadth_model, act_tbread_model, show.stat = TRUE, show.se = TRUE, file = "Ae_breadth_model_sums.html")
 
 library(webshot)
 webshot("Ae_breadth_model_sums.html", "Ae_breadth_model_results.pdf")
