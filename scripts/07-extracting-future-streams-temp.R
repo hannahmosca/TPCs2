@@ -1,5 +1,8 @@
-### this is a script to get freshwater temperature data from future streams ###
-# goal: to get a raster of monthly averages from 1982-2025
+#Title: extracting-future-streams-temp.R
+# Description:
+#   Processes weekly freshwater stream temperature rasters (FutureStreams) into
+#   monthly mean temperatures for the FishTherm study window (1982-01 to 2025-09).
+
 
 ### loading/installing required packages ###
 library(ncdf4)

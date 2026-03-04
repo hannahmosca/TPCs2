@@ -1,5 +1,12 @@
 ### this is a script to get marine temperature data ###
-# goal: to get a raster of monthly averages from 1982-2025
+#Description:
+  #   Builds a monthly sea-surface temperature (SST) raster time series from the
+  #   NOAA monthly mean NetCDF (sst.mon.mean.nc), subsets the record to match the
+  #   FishTherm study window (1982-01 to 2025-09), replaces fill values with NA,
+  #   and writes a processed NetCDF. Then computes long-term SST summary rasters (mean, sd, min, max, 2.5% and
+  #   97.5% quantiles) across all months in the window, maps sampling locations,
+  #   and extracts (a) full monthly SST time series and (b) summary statistics at
+  #   unique marine study coordinates.
 ## loading/installing required packages ###
 library(ncdf4)
 library(terra)
