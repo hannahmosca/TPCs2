@@ -203,7 +203,7 @@ ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)),
 lat_avtbreadth_model <- lmer(averaged_tbreadth ~ abs_latitude * enviornment + (1 | study_ID), 
                              data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)))
 
-summary(lat_avpbreadth_model)
+summary(lat_avtbreadth_model)
 # not signif
 
 #plot fitted model 
@@ -315,7 +315,7 @@ tolerance_and_breadth_graph
 ggsave("tolerance_breadth_with_performance_breadth.png", plot = tolerance_and_breadth_graph, path = here("figures"), width = 4, height = 4.2)
 
 
-#### 08. thermal optima and environmental mean temperature ####
+#### 08. thermal optima and environmental temperature ####
 
 ## avg topts and meanenv. temp ##
 ggplot(data = collapsed_params_unique %>%
@@ -445,10 +445,10 @@ topt_extreme_temp <- ggplot(data = pred_grid, aes(x = q_high)) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015,0.015))) +
   theme_classic(base_size = 16) +
-  theme(legend.position = "none")
+  theme(legend.position = "right")
 
 topt_extreme_temp
-ggsave("topt_extremetemp_lme.pdf", plot = topt_extreme_temp, path = here("figures"), width = 4, height = 4)
+ggsave("topt_extremetemp_lme.png", plot = topt_extreme_temp, path = here("figures"), width = 5, height = 4)
 
 #### 09. performance breadth and variability ####
 ggplot(data = collapsed_params_unique %>%
