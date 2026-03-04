@@ -40,7 +40,7 @@ act_eng <- act_eng %>%
 
 #### 02. collapse within study/species/latitude by grouping variables ####
 
-## Response type (Trait.Group)
+## response type (Trait.Group)
 average_ee_TG <- act_eng %>%
   group_by(study_ID, species_ID, latitude, Trait.Group) %>%
   mutate(averaged_e = mean(e_arr, na.rm = TRUE)) %>%
