@@ -5,25 +5,24 @@ This repository contains the data and code used to produce the analyses and figu
 All scripts are organized to allow the analyses and figures in the manuscript to be reproduced. Running the scripts in order should recreate the processed datasets, model outputs, and figures presented in the paper.
 
 ## Data 
-A minimum dataset needed to reproduce all main analyses and large files that cannot be hosted on Github can be downloaded from the paper's Figshare repository, which is linked in the article Data Availability statement. For scripts to successfully run, the large files should be donwloaded into a folder titled 'large-files' in the repository's working directory.
-  
-Additional temperature, elevation, and depth data files used in analyses can be downloaded here:
- - [Berkeley Earth Daily Land (Experimental; 1880 – Recent)](http://berkeleyearth.org/data/) - Average High Temperature (TMAX) and Average High Temperature (TMAX)]
- - [NOAA OI SST V2 High Resolution Dataset](https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html) - Mean Daily Sea Surface Temperature
- - [General Bathymetric Chart of the Oceans](https://gebco.net/data_and_products/gridded_bathymetry_data/) - TID Grid
- - [EarthEnv Global 10-km topography](http://www.earthenv.org/topography) - Maximum and Minimum, GMTED2010
+FishTherm Database
+ - [FishTherm]()
  
-Realized range polygons needed to run analysis can be downloaded here:
- - [IUCN Spaial Files](https://www.iucnredlist.org/resources/spatial-data-download) - AMPHIBIANS, BLENNIES, CLUPEIFORMES, FILTERED, FW_FISH, MAMMALS, MARINEFISH, PUFFERFISH, REPTILES, SEABREAMS_PORGIES_PICARELS, SHARKS_RAYS_CHIMAERAS, WRASSES_PARROTFISHES
- - [GARD Version 1.1](http://www.gardinitiative.org/data.html)
+A minimum dataset needed to reproduce all main analyses and large files that cannot be hosted on Github can be downloaded from these links here.
+  
+SST data files used in analyses can be downloaded here:
+ - [NOAA OI SST V2 High Resolution Dataset](https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html) - Mean Daily Sea Surface Temperature
+Freshwater Temperature data files can be downloaded here: 
+ - [Futurestreams dataset](https://public.yoda.uu.nl/geo/UU01/T7TVTQ.html) Files used: "waterTemp_weekAvg_output_E2O_hist_1979-01-07_to_1985-12-30.nc", "waterTemp_weekAvg_output_E2O_hist_1986-01-07_to_1995-12-30.nc", "waterTemp_weekAvg_output_E2O_hist_1996-01-07_to_2005-12-30.nc", "waterTemp_weekAvg_output_hadgem_rcp4p5_2006-01-07_to_2019-12-30.nc", "waterTemp_weekAvg_output_hadgem_rcp4p5_2020-01-07_to_2029-12-30.nc"
+
 
 ## Code
 The following are all of the R scripts contained in this repository and a short description of what each accomplishes:
-#### [01_creating-temperature-depth-elev-data.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/01_creating-temperature-depth-elev-data.R)
- - prepares global air and sea surface temperature, depth, and elevation data for use in analyses 
-#### [02_collating-realized-range-maps.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/02_collating-realized-range-maps.R)
- - extracts and organizes realized range polygons  
-#### [03_trait-wrangling.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/03_trait-wrangling.R)
+#### [00-extraction-data-processing.R] 
+ - Cleans and processes raw thermal performance data extracted from the literature. Filters for wild fish only, standardizes variables, categorizes trait types, generates unique curve IDs, and outputs cleaned database of tpcs ready to be fit
+#### [01-TPC-database-characteristics.R]
+ - Summarize FishTherm dataset characteristic
+#### [03_trait-wrangling.R] 
 - collates and cleans trait data for species incldued in the analysis
 #### [04_acclimatisation-analysis.R](https://github.com/nicole-a-moore/living-up-to-thermal-potentials/blob/main/R/04_acclimatisation-analysis.R)
 - collates and cleans pre-existing acclimation response ratio databases for use in the acclimatisation analysis 
