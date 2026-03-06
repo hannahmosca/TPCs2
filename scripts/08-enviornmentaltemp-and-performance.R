@@ -10,7 +10,7 @@
   library(tidyverse)
   library(terra)
   rm(list = ls())
-  
+
   #### 01. load required data ####
   fitted_datasets <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng.RDS'))
   fitted_datasets <- fitted_datasets %>%
