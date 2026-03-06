@@ -10,10 +10,12 @@ FishTherm Database
  
 A minimum dataset needed to reproduce all main analyses and large files that cannot be hosted on Github can be downloaded from these links here.
   
-SST data files used in analyses can be downloaded here:
- - [NOAA OI SST V2 High Resolution Dataset](https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html) - Mean Daily Sea Surface Temperature
-Freshwater Temperature data files can be downloaded here: 
- - [Futurestreams dataset](https://public.yoda.uu.nl/geo/UU01/T7TVTQ.html) Files used: "waterTemp_weekAvg_output_E2O_hist_1979-01-07_to_1985-12-30.nc", "waterTemp_weekAvg_output_E2O_hist_1986-01-07_to_1995-12-30.nc", "waterTemp_weekAvg_output_E2O_hist_1996-01-07_to_2005-12-30.nc", "waterTemp_weekAvg_output_hadgem_rcp4p5_2006-01-07_to_2019-12-30.nc", "waterTemp_weekAvg_output_hadgem_rcp4p5_2020-01-07_to_2029-12-30.nc"
+#### SST data files used in analyses can be downloaded here:
+ - [SST and SST Anomaly, NOAA Global Coral Bleaching Monitoring](https://catalog.data.gov/dataset/sst-and-sst-anomaly-noaa-global-coral-bleaching-monitoring-5km-v-3-1-monthly-1985-present-lon03) - SST 5km, V.3.1, Monthly, 1985-Present, Lon0360
+
+#### Freshwater Temperature data files can be downloaded here: 
+ - [Futurestreams dataset](https://public.yoda.uu.nl/geo/UU01/T7TVTQ.html) 
+ - Files used: "waterTemp_weekAvg_output_E2O_hist_1979-01-07_to_1985-12-30.nc", "waterTemp_weekAvg_output_E2O_hist_1986-01-07_to_1995-12-30.nc", "waterTemp_weekAvg_output_E2O_hist_1996-01-07_to_2005-12-30.nc", "waterTemp_weekAvg_output_hadgem_rcp4p5_2006-01-07_to_2019-12-30.nc", "waterTemp_weekAvg_output_hadgem_rcp4p5_2020-01-07_to_2029-12-30.nc"
 
 
 ## Code
