@@ -1,7 +1,7 @@
 # FishTherm
 
 ## Introduction
-This repository contains the data and code used to produce the analyses and figures presented in "Thermal performance in fishes varies systematically across latitude, habitat, and biological organization." The study introduces FishTherm, a compilation of thermal performance curves for wild fishes, and examines how key thermal parameters—including thermal optima, performance breadth, tolerance breadth, and activation energy—vary across latitude, habitat, response type, and levels of biological organization.
+This repository contains the data and code used to produce the analyses and figures presented in "Thermal performance in fishes varies systematically across latitude, habitat, and biological organization." The study introduces FishTherm, a compilation database of thermal performance curves for wild fishes, and examines how key thermal parameters—including thermal optima, performance breadth, tolerance breadth, and activation energy—vary across latitude, habitat, response type, and levels of biological organization.
 All scripts are organized to allow the analyses and figures in the manuscript to be reproduced. Running the scripts in order should recreate the processed datasets, model outputs, and figures presented in the paper.
 
 ## Data 
