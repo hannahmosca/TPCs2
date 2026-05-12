@@ -13,131 +13,523 @@ library(dplyr)
 library(tidyverse)
 rm(list = ls())
 
-# load required data #
-fitted_datasets <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng.RDS'))
-fitted_datasets <- fitted_datasets %>%
-  mutate(land_or_sea = ifelse(land_or_sea == "terrestrial", "freshwater", "marine"))
+#loading data
+params <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng.RDS'))
 curves <- read.csv(here('processed-data', 'FishTherm.csv'))
-##point data
+params <- params %>%
+  mutate(environment = ifelse(land_or_sea == "terrestrial", "freshwater", "marine")) %>%
+  select(-(land_or_sea))
+params <- params %>%
+  left_join(curves %>% select(species_ID, curve_ID, organization), join_by(curve_ID)) %>%
+  distinct() 
+params <- params %>%
+  mutate(Trait.Group = factor(Trait.Group, levels = c("Metabolism", "Energy Aquisition", "Somatic Growth", "Locomotion", "Reproduction", "Survival"))) %>%
+  mutate(Trait.motivation = factor(Trait.motivation, levels = c("negative", "voluntary", "autonomic", "positive"))) %>%
+  mutate(organization = factor(organization, levels = c("internal", "individual", "interaction", "population"))) %>%
+  mutate(environment = factor(environment, levels = c("marine", "freshwater"))) %>%
+  mutate(study_ID = as.factor(study_ID))
+# load temperature data in #
 freshwater_points <- readRDS(here("processed-data", "my_points_freshwater_summary.RDS"))
 marine_points <- readRDS(here("processed-data", "my_points_sst_summary.RDS")) %>%
   rename(q_low = q2.5) %>%
   rename(q_high = q97.5)
-
-# combine all temperature data 
 freshwater_points <- freshwater_points %>%
-  mutate(enviornment = "Freshwater") 
-
+  mutate(environment = "freshwater") 
 marine_points <- marine_points %>%
-  mutate(enviornment = "Marine")
-
+  mutate(environment = "marine")
 point_data_all <- rbind(freshwater_points, marine_points) %>%
   select(latitude, longitude, everything())
+fits_with_temps <- params %>%
+  left_join(point_data_all, join_by(latitude, longitude, environment))
 
-fits_with_temps <- fitted_datasets %>%
-  left_join(point_data_all, join_by(latitude, longitude)) %>%
-  select(-(land_or_sea))
-
-
-# averaging paramaters by 'group'//accounting for pseudorep
-collapsed_params <- fits_with_temps %>%
-  left_join(curves %>% select(curve_ID, species_ID)) %>%
-  distinct() %>%
-  group_by(study_ID, species_ID, latitude, Trait.Group) %>%
-  mutate(
-    averaged_topt = if (any(topt_TF)) mean(topt[topt_TF], na.rm = TRUE) else NA_real_,
-    averaged_pbreadth = if (any(breadth_TF)) mean(breadth[breadth_TF], na.rm = TRUE) else NA_real_,
-    averaged_tbreadth = if (any(thermal_tolerance_TF)) mean(thermal_tolerance[thermal_tolerance_TF], na.rm = TRUE) else NA_real_,
-    averaged_e = if (any(!is.na(e_arr))) mean(e_arr, na.rm = TRUE) else NA_real_)  %>%
+# averaging topt by trait group only
+average_topts_TG <- fits_with_temps %>%
+  filter(topt_TF == TRUE) %>%
+  group_by(study_ID, species_ID, latitude, Trait.Group) %>% 
+  mutate(averaged_topt = mean(topt)) %>%
   ungroup()
 
-length(unique(collapsed_params$averaged_topt)) #132
+average_topts_TG <- average_topts_TG %>%
+  mutate(environment = factor(environment, levels = c("marine", "freshwater")))
+average_topts_TG <- average_topts_TG %>%
+  select(study_ID, Trait.Group, species_ID, averaged_topt, abs_latitude, latitude, environment, mean, sd) %>%
+  distinct() #134
 
-collapsed_params_unique <- collapsed_params %>%
-  select(study_ID, Trait.Group, species_ID, averaged_e, averaged_topt, averaged_pbreadth, averaged_tbreadth, abs_latitude, latitude, mean, sd, enviornment, q_high) %>%
-  distinct()
+
 
 ## first will show fitted linear model ##
 
 ## linear model with Topt and Latitude ##
-ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)),
-       aes(x = abs_latitude, y = averaged_topt, color = enviornment)) +
+ggplot(data = average_topts_TG,
+       aes(x = abs_latitude, y = averaged_topt, color = environment)) +
   geom_point(alpha = 0.7) +
   scale_color_manual(
     name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
   ) +
   theme_classic()
 
 
-lat_avtopt_model <- lmer(averaged_topt ~ abs_latitude * enviornment + (1 | study_ID), 
-                         data = collapsed_params_unique %>% filter(!is.na(averaged_topt)))
+lat_avtopt_model <- lmer(averaged_topt ~ abs_latitude * environment + (1 | study_ID), 
+                         data = average_topts_TG)
 
 summary(lat_avtopt_model)
 plot(lat_avtopt_model)
 qqnorm(residuals(lat_avtopt_model))
 qqline(residuals(lat_avtopt_model))
-#plot fitted model 
-## want to make sure only predicting on range of data
-lat_range <- collapsed_params_unique %>%
-  filter(!is.na(averaged_topt)) %>%
-  group_by(enviornment) %>%
-  summarise(
-    min_abs_lat = min(abs_latitude),
-    max_abs_lat = max(abs_latitude))
-lat_range
-fresh_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_lat[lat_range$enviornment=="Freshwater"],
-                     lat_range$max_abs_lat[lat_range$enviornment=="Freshwater"],
-                     length.out = 200),
-  enviornment = "Freshwater")
-marine_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_lat[lat_range$enviornment=="Marine"],
-                     lat_range$max_abs_lat[lat_range$enviornment=="Marine"],
-                     length.out = 200),
-  enviornment = "Marine")
-
-pred_grid <- bind_rows(fresh_grid, marine_grid)
-pred_grid$pred <- predict(lat_avtopt_model, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(lat_avtopt_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
-
-pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
-pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
-
-
-avtopt_latitude <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
-  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)), aes(x = abs_latitude, y = averaged_topt, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
-  labs(x = "Absolute Latitude", y = "Thermal Optima") +
-  scale_color_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  scale_fill_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
-  scale_y_continuous(expand = expansion(mult = c(0.015,0.015))) +
-  theme_classic(base_size = 16)
-avtopt_latitude
 
 ## now i am fitting a GAM to topt and latitude ##
 install.packages("mgcv")
 library(mgcv)
-gam_data <-  collapsed_params_unique %>%
-  filter(
-    !is.na(averaged_topt),
-    !is.na(abs_latitude),
-    !is.na(enviornment),
-    !is.na(study_ID))
-gam_data$enviornment <- as.factor(gam_data$enviornment)
-gam_data$study_ID <- as.factor(gam_data$study_ID)
-gam_data <- droplevels(gam_data)
-lat_avtopt_gam <- gam(averaged_topt ~ s(abs_latitude, by = enviornment) + enviornment + s(study_ID, bs = "re"), data = gam_data, method = "REML")
+
+lat_avtopt_gam <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = average_topts_TG, method = "REML")
+
 summary(lat_avtopt_gam)
 plot(lat_avtopt_gam, pages = 1)
 
 AIC(lat_avtopt_model, lat_avtopt_gam)
 
+#### sensitivity//new analysis 2-- residuals from gam ###
+average_topts_TG$gamresid_topt_lat = residuals(lat_avtopt_gam)
+
+
+## get residuals for other groupings too ##
+
+## averaging topt by trait group and motivation ##
+average_topts_TM <- fits_with_temps %>%
+  filter(topt_TF == TRUE) %>%
+  group_by(study_ID, species_ID, latitude, Trait.Group, Trait.motivation) %>% ## could also try cohort 
+  mutate(averaged_topt = mean(topt)) %>%
+  ungroup()
+
+average_topts_TM <- average_topts_TM %>%
+  mutate(environment = factor(environment, levels = c("marine", "freshwater"))) %>%
+  select(study_ID, Trait.Group, Trait.motivation, species_ID, averaged_topt, abs_latitude, latitude, environment, mean, sd) %>%
+  distinct() #147
+
+
+lat_avtopt_TM_gam_model <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = average_topts_TM, method = "REML")
+
+summary(lat_avtopt_TM_gam_model)
+average_topts_TM$gamresid_topt_lat = residuals(lat_avtopt_TM_gam_model)
+
+##averaging topt by trait group and motivation and organization## 
+
+average_topts_TO <- fits_with_temps %>%
+  filter(topt_TF == TRUE) %>%
+  group_by(study_ID, species_ID, latitude, Trait.Group, Trait.motivation, organization) %>% ## could also try cohort 
+  mutate(averaged_topt = mean(topt)) %>%
+  ungroup()
+
+average_topts_TO <- average_topts_TO %>%
+  mutate(environment = factor(environment, levels = c("marine", "freshwater"))) %>%
+  select(study_ID, Trait.Group, Trait.motivation, organization, species_ID, averaged_topt, abs_latitude, latitude, environment, mean, sd) %>%
+  distinct() #149
+lat_avtopt_TO_gam_model <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = average_topts_TO, method = "REML")
+
+summary(lat_avtopt_TO_gam_model)
+average_topts_TO$gamresid_topt_lat = residuals(lat_avtopt_TO_gam_model)
+#### 03. summaries (mean/median/SE/95% CI) for overlay on ridge plots ####
+
+TG_sum <- average_topts_TG %>%
+  group_by(Trait.Group) %>%
+  summarise(
+    mean_topt_r = mean(gamresid_topt_lat, na.rm = TRUE),
+    median_topt_r = median(gamresid_topt_lat,na.rm = TRUE),
+    se = sd(gamresid_topt_lat, na.rm = TRUE) / sqrt(n()),
+    ci_low = mean_topt_r - 1.96 * se,
+    ci_high = mean_topt_r + 1.96 * se,
+    .groups = "drop"
+  )
+
+TM_sum <- average_topts_TM %>%
+  group_by(Trait.motivation) %>%
+  summarise(
+    mean_topt_r = mean(gamresid_topt_lat, na.rm = TRUE),
+    median_topt_r = median(gamresid_topt_lat,na.rm = TRUE),
+    se = sd(gamresid_topt_lat, na.rm = TRUE) / sqrt(n()),
+    ci_low = mean_topt_r - 1.96 * se,
+    ci_high = mean_topt_r + 1.96 * se,
+    .groups = "drop"
+  )
+TO_sum <- average_topts_TO %>%
+  group_by(organization) %>%
+  summarise(
+    mean_topt_r = mean(gamresid_topt_lat, na.rm = TRUE),
+    median_topt_r = median(gamresid_topt_lat, na.rm = TRUE),
+    se = sd(gamresid_topt_lat, na.rm = TRUE) / sqrt(n()),
+    ci_low = mean_topt_r - 1.96 * se,
+    ci_high = mean_topt_r + 1.96 * se,
+    .groups = "drop"
+  )
+global_x_limits <- c(-20, 10)
+
+library(ggridges)
+trait.groups <- ggplot(average_topts_TG, aes(x = gamresid_topt_lat, y = Trait.Group, fill = Trait.Group)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
+  geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = .65) +
+  geom_point(aes(y = Trait.Group, color = environment), shape = 73, size = 2.5, alpha = 1) +
+  geom_errorbarh(data = TG_sum, inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high,y = Trait.Group),
+                 height = 0.10,linewidth = 0.4, color = "black",position = position_nudge(y = -0.15)) +
+  geom_point(data = TG_sum, inherit.aes = FALSE, aes(x = mean_topt_r, y = Trait.Group),
+             shape = 21, size = 1.5, fill = "red", alpha = .7, position = position_nudge(y = -0.15)) +
+  geom_point(data = TG_sum, inherit.aes = FALSE, aes(x = median_topt_r, y = Trait.Group),
+             shape = 23,size = 1.5, fill = "grey", alpha = .7,  position = position_nudge(y = -0.15)) +
+  labs(x = "Topt and Lat residuals", y = NULL) +
+  scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
+  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
+  scale_color_manual(values = c("freshwater" = "blue",
+                                "marine" = "green")) +
+  theme_classic(base_size = 18) +
+  theme(
+    axis.text.x = element_text(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+trait.groups
+
+trait.motivation <- ggplot(average_topts_TM, aes(x = gamresid_topt_lat, y = Trait.motivation,  # reorder on the fly
+                                                 fill = Trait.motivation)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
+  geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = .65) +
+  geom_point(aes(y = Trait.motivation, color = environment), shape = 73, size = 2.5, alpha = 1) +
+  geom_errorbarh(data = TM_sum, inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high,y = Trait.motivation),
+                 height = 0.10,linewidth = 0.4, color = "black",position = position_nudge(y = -0.15)) +
+  geom_point(data = TM_sum, inherit.aes = FALSE, aes(x = mean_topt_r, y = Trait.motivation),
+             shape = 21, size = 1.5, fill = "red", alpha = .7, position = position_nudge(y = -0.15)) +
+  geom_point(data = TM_sum, inherit.aes = FALSE, aes(x = median_topt_r, y = Trait.motivation),
+             shape = 23,size = 1.5, fill = "grey", alpha = .7,  position = position_nudge(y = -0.15)) +
+  labs(x = "Topt and Lat residuals", y = NULL) +
+  scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
+  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
+  scale_color_manual(values = c("freshwater" = "blue",
+                                "marine" = "green")) +
+  theme_classic(base_size = 18) +
+  theme(
+    axis.text.x = element_text(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+trait.motivation
+
+
+trait.organization <- ggplot(average_topts_TO, aes(x = gamresid_topt_lat, y =organization,  # reorder on the fly
+                                                   fill = organization)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
+  geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = .65) +
+  geom_point(aes(y = organization, color = environment), shape = 73, size = 2.5, alpha = 1) +
+  geom_errorbarh(data = TO_sum, inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high, y = organization),
+                 height = 0.10,linewidth = 0.4, color = "black",position = position_nudge(y = -0.15)) +
+  geom_point(data = TO_sum, inherit.aes = FALSE, aes(x = mean_topt_r, y = organization),
+             shape = 21, size = 1.5, fill = "red", alpha = .7, position = position_nudge(y = -0.15)) +
+  geom_point(data = TO_sum, inherit.aes = FALSE, aes(x = median_topt_r, y = organization),
+             shape = 23,size = 1.5, fill = "grey", alpha = .7,  position = position_nudge(y = -0.15)) +
+  labs(x = "Topt and Lat residuals", y = NULL) +
+  scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
+  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
+  scale_color_manual(values = c("freshwater" = "blue",
+                                "marine" = "green")) +
+  theme_classic(base_size = 18) +
+  theme(
+    axis.text.x = element_text(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+
+trait.organization
+
+library(patchwork)
+combined_figure <-
+  trait.groups +
+  trait.motivation +
+  trait.organization +
+  plot_layout(ncol = 1, guides = "collect") +
+  theme(
+    axis.title.x = element_text(size = 16),
+    plot.margin = margin(5, 5, 5, 5)
+  )
+
+combined_figure
+
+
+#### residuals for thermal optima and environmental temperature ####
+
+## avg topts and meanenv. temp ##
+ggplot((data = average_topts_TG), aes(x = mean, y = averaged_topt, color = environment)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(
+    name = "Environment",
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
+  ) +
+  theme_classic()
+
+
+mean_temp_topt_TG_lmer_model <- lmer(averaged_topt ~ mean * environment + (1 | study_ID), 
+                          data = average_topts_TG)
+average_topts_TG$resid_topt_temp = residuals(mean_temp_topt_TG_lmer_model)
+
+mean_temp_topt_gam_model <- gam(averaged_topt ~ s(mean, by = environment) + environment + s(study_ID, bs = "re"), data = average_topts_TG, method = "REML")
+
+summary(mean_temp_topt_gam_model)
+
+AIC(mean_temp_topt_TG_lmer_model, mean_temp_topt_gam_model) # linear model of env temp and topt is better than gam for env temp and topt 
+
+## get residuals for linear model of topt with temperature ##
+mean_temp_topt_TM_lmer_model <- lmer(averaged_topt ~ mean * environment + (1 | study_ID), 
+                                     data = average_topts_TM)
+average_topts_TM$resid_topt_temp = residuals(mean_temp_topt_TM_lmer_model)
+
+mean_temp_topt_TO_lmer_model <- lmer(averaged_topt ~ mean * environment + (1 | study_ID), 
+                                     data = average_topts_TO)
+average_topts_TO$resid_topt_temp = residuals(mean_temp_topt_TO_lmer_model)
+
+#### 03. summaries (mean/median/SE/95% CI) for overlay on ridge plots ####
+
+TG_sum <- average_topts_TG %>%
+  group_by(Trait.Group) %>%
+  summarise(
+    mean_temp_topt_r = mean(resid_topt_temp, na.rm = TRUE),
+    median_temp_topt_r = median(resid_topt_temp,na.rm = TRUE),
+    se_temp = sd(resid_topt_temp, na.rm = TRUE) / sqrt(n()),
+    ci_low_temp = mean_temp_topt_r - 1.96 * se_temp,
+    ci_high_temp = mean_temp_topt_r + 1.96 * se_temp,
+    mean_lat_topt_r = mean(gamresid_topt_lat, na.rm = TRUE),
+    median_lat_topt_r = median(gamresid_topt_lat,na.rm = TRUE),
+    se_lat = sd(gamresid_topt_lat, na.rm = TRUE) / sqrt(n()),
+    ci_low_lat = mean_lat_topt_r - 1.96 * se_lat,
+    ci_high_lat = mean_lat_topt_r + 1.96 * se_lat,
+    .groups = "drop"
+  )
+
+TM_sum <- average_topts_TM %>%
+  group_by(Trait.motivation) %>%
+  summarise(
+    mean_temp_topt_r = mean(resid_topt_temp, na.rm = TRUE),
+    median_temp_topt_r = median(resid_topt_temp,na.rm = TRUE),
+    se_temp = sd(resid_topt_temp, na.rm = TRUE) / sqrt(n()),
+    ci_low_temp = mean_temp_topt_r - 1.96 * se_temp,
+    ci_high_temp = mean_temp_topt_r + 1.96 * se_temp,
+    mean_lat_topt_r = mean(gamresid_topt_lat, na.rm = TRUE),
+    median_lat_topt_r = median(gamresid_topt_lat,na.rm = TRUE),
+    se_lat = sd(gamresid_topt_lat, na.rm = TRUE) / sqrt(n()),
+    ci_low_lat = mean_lat_topt_r - 1.96 * se_lat,
+    ci_high_lat = mean_lat_topt_r + 1.96 * se_lat,
+    .groups = "drop"
+  )
+TO_sum <- average_topts_TO %>%
+  group_by(organization) %>%
+  summarise(
+    mean_temp_topt_r = mean(resid_topt_temp, na.rm = TRUE),
+    median_temp_topt_r = median(resid_topt_temp,na.rm = TRUE),
+    se_temp = sd(resid_topt_temp, na.rm = TRUE) / sqrt(n()),
+    ci_low_temp = mean_temp_topt_r - 1.96 * se_temp,
+    ci_high_temp = mean_temp_topt_r + 1.96 * se_temp,
+    mean_lat_topt_r = mean(gamresid_topt_lat, na.rm = TRUE),
+    median_lat_topt_r = median(gamresid_topt_lat,na.rm = TRUE),
+    se_lat = sd(gamresid_topt_lat, na.rm = TRUE) / sqrt(n()),
+    ci_low_lat = mean_lat_topt_r - 1.96 * se_lat,
+    ci_high_lat = mean_lat_topt_r + 1.96 * se_lat,
+    .groups = "drop"
+  )
+
+global_x_limits <- c(-20, 20)
+
+library(ggridges)
+trait.groups <- ggplot(average_topts_TG, aes(x = resid_topt_temp, y = Trait.Group, fill = Trait.Group)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
+  geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = .65) +
+  geom_point(aes(y = Trait.Group, color = environment), shape = 73, size = 2.5, alpha = 1) +
+  geom_errorbarh(data = TG_sum, inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high,y = Trait.Group),
+                 height = 0.10,linewidth = 0.4, color = "black",position = position_nudge(y = -0.15)) +
+  geom_point(data = TG_sum, inherit.aes = FALSE, aes(x = mean_topt_r, y = Trait.Group),
+             shape = 21, size = 1.5, fill = "red", alpha = .7, position = position_nudge(y = -0.15)) +
+  geom_point(data = TG_sum, inherit.aes = FALSE, aes(x = median_topt_r, y = Trait.Group),
+             shape = 23,size = 1.5, fill = "grey", alpha = .7,  position = position_nudge(y = -0.15)) +
+  labs(x = "Topt and temperature residuals", y = NULL) +
+  scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
+  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
+  scale_color_manual(values = c("freshwater" = "blue",
+                                "marine" = "green")) +
+  theme_classic(base_size = 18) +
+  theme(
+    axis.text.x = element_text(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+trait.groups
+
+trait.motivation <- ggplot(average_topts_TM, aes(x = resid_topt_temp, y = Trait.motivation,  # reorder on the fly
+                                                 fill = Trait.motivation)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
+  geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = .65) +
+  geom_point(aes(y = Trait.motivation, color = environment), shape = 73, size = 2.5, alpha = 1) +
+  geom_errorbarh(data = TM_sum, inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high,y = Trait.motivation),
+                 height = 0.10,linewidth = 0.4, color = "black",position = position_nudge(y = -0.15)) +
+  geom_point(data = TM_sum, inherit.aes = FALSE, aes(x = mean_topt_r, y = Trait.motivation),
+             shape = 21, size = 1.5, fill = "red", alpha = .7, position = position_nudge(y = -0.15)) +
+  geom_point(data = TM_sum, inherit.aes = FALSE, aes(x = median_topt_r, y = Trait.motivation),
+             shape = 23,size = 1.5, fill = "grey", alpha = .7,  position = position_nudge(y = -0.15)) +
+  labs(x = "Topt and temperature residuals", y = NULL) +
+  scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
+  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
+  scale_color_manual(values = c("freshwater" = "blue",
+                                "marine" = "green")) +
+  theme_classic(base_size = 18) +
+  theme(
+    axis.text.x = element_text(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+trait.motivation
+
+
+trait.organization <- ggplot(average_topts_TO, aes(x = resid_topt_temp, y =organization,  # reorder on the fly
+                                                   fill = organization)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
+  geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = .65) +
+  geom_point(aes(y = organization, color = environment), shape = 73, size = 2.5, alpha = 1) +
+  geom_errorbarh(data = TO_sum, inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high, y = organization),
+                 height = 0.10,linewidth = 0.4, color = "black",position = position_nudge(y = -0.15)) +
+  geom_point(data = TO_sum, inherit.aes = FALSE, aes(x = mean_topt_r, y = organization),
+             shape = 21, size = 1.5, fill = "red", alpha = .7, position = position_nudge(y = -0.15)) +
+  geom_point(data = TO_sum, inherit.aes = FALSE, aes(x = median_topt_r, y = organization),
+             shape = 23,size = 1.5, fill = "grey", alpha = .7,  position = position_nudge(y = -0.15)) +
+  labs(x = "Topt and temperature residuals", y = NULL) +
+  scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
+  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
+  scale_color_manual(values = c("freshwater" = "blue",
+                                "marine" = "green")) +
+  theme_classic(base_size = 18) +
+  theme(
+    axis.text.x = element_text(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+
+trait.organization
+
+library(patchwork)
+combined_figure <-
+  trait.groups +
+  trait.motivation +
+  trait.organization +
+  plot_layout(ncol = 1, guides = "collect") +
+  theme(
+    axis.title.x = element_text(size = 16),
+    plot.margin = margin(5, 5, 5, 5)
+  )
+
+combined_figure
+
+
+#### just mean and median for gam lat model and linear temp model ####
+global_x_limits <- c(-20, 20)
+
+library(ggridges)
+trait.groups <- ggplot(average_topts_TG, aes(y = Trait.Group, fill = Trait.Group)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
+  geom_errorbarh(data = TG_sum, inherit.aes = FALSE, aes(xmin = ci_low_temp, xmax = ci_high_temp, y = Trait.Group),
+                 height = 0.10,linewidth = 0.4, color = "purple",position = position_nudge(y = -0.15)) +
+  geom_errorbarh(data = TG_sum, inherit.aes = FALSE, aes(xmin = ci_low_lat, xmax = ci_high_lat,y = Trait.Group),
+                 height = 0.10,linewidth = 0.4, color = "darkgreen" ,position = position_nudge(y = 0.15)) +
+  geom_point(data = TG_sum, inherit.aes = FALSE, aes(x = mean_temp_topt_r, y = Trait.Group),
+             shape = 21, size = 1.5, fill = "purple", alpha = .4, position = position_nudge(y = -0.15)) +
+  geom_point(data = TG_sum, inherit.aes = FALSE, aes(x = mean_lat_topt_r, y = Trait.Group),
+             shape = 21, size = 1.5, fill = "darkgreen", alpha = .4, position = position_nudge(y = 0.15)) +
+  geom_point(data = TG_sum, inherit.aes = FALSE, aes(x = median_temp_topt_r, y = Trait.Group),
+             shape = 23,size = 1, fill = "purple", alpha = .4,  position = position_nudge(y = -0.15)) +
+  geom_point(data = TG_sum, inherit.aes = FALSE, aes(x = median_lat_topt_r, y = Trait.Group),
+             shape = 23,size = 1, fill = "darkgreen", alpha = .4,  position = position_nudge(y = 0.15)) +
+  labs(x = "Residuals", y = NULL) +
+  scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
+  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
+  theme_classic(base_size = 18) +
+  theme(
+    axis.text.x = element_text(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+trait.groups
+
+trait.motivation <- ggplot(average_topts_TM, aes(y = Trait.motivation, fill = Trait.motivation)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
+  geom_errorbarh(data = TM_sum, inherit.aes = FALSE, aes(xmin = ci_low_temp, xmax = ci_high_temp, y = Trait.motivation),
+                 height = 0.10,linewidth = 0.4, color = "purple",position = position_nudge(y = -0.15)) +
+  geom_errorbarh(data = TM_sum, inherit.aes = FALSE, aes(xmin = ci_low_lat, xmax = ci_high_lat,y = Trait.motivation),
+                 height = 0.10,linewidth = 0.4, color = "darkgreen" ,position = position_nudge(y = 0.15)) +
+  geom_point(data = TM_sum, inherit.aes = FALSE, aes(x = mean_temp_topt_r, y = Trait.motivation),
+             shape = 21, size = 1.5, fill = "purple", alpha = .4, position = position_nudge(y = -0.15)) +
+  geom_point(data = TM_sum, inherit.aes = FALSE, aes(x = mean_lat_topt_r, y = Trait.motivation),
+             shape = 21, size = 1.5, fill = "darkgreen", alpha = .4, position = position_nudge(y = 0.15)) +
+  geom_point(data = TM_sum, inherit.aes = FALSE, aes(x = median_temp_topt_r, y = Trait.motivation),
+             shape = 23,size = 1, fill = "purple", alpha = .4,  position = position_nudge(y = -0.15)) +
+  geom_point(data = TM_sum, inherit.aes = FALSE, aes(x = median_lat_topt_r, y = Trait.motivation),
+             shape = 23,size = 1, fill = "darkgreen", alpha = .4,  position = position_nudge(y = 0.15)) +
+  labs(x = "Residuals", y = NULL) +
+  scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
+  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
+  theme_classic(base_size = 18) +
+  theme(
+    axis.text.x = element_text(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+trait.motivation
+
+
+trait.organization <- ggplot(average_topts_TO, aes(y = organization, fill = organization)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = .5, alpha = .4) +
+  geom_errorbarh(data = TO_sum, inherit.aes = FALSE, aes(xmin = ci_low_temp, xmax = ci_high_temp, y = organization),
+                 height = 0.10,linewidth = 0.4, color = "purple",position = position_nudge(y = -0.15)) +
+  geom_errorbarh(data = TO_sum, inherit.aes = FALSE, aes(xmin = ci_low_lat, xmax = ci_high_lat,y = organization),
+                 height = 0.10,linewidth = 0.4, color = "darkgreen" ,position = position_nudge(y = 0.15)) +
+  geom_point(data = TO_sum, inherit.aes = FALSE, aes(x = mean_temp_topt_r, y = organization),
+             shape = 21, size = 1.5, fill = "purple", alpha = .4, position = position_nudge(y = -0.15)) +
+  geom_point(data = TO_sum, inherit.aes = FALSE, aes(x = mean_lat_topt_r, y = organization),
+             shape = 21, size = 1.5, fill = "darkgreen", alpha = .4, position = position_nudge(y = 0.15)) +
+  geom_point(data = TO_sum, inherit.aes = FALSE, aes(x = median_temp_topt_r, y = organization),
+             shape = 23,size = 1, fill = "purple", alpha = .4,  position = position_nudge(y = -0.15)) +
+  geom_point(data = TO_sum, inherit.aes = FALSE, aes(x = median_lat_topt_r, y = organization),
+             shape = 23,size = 1, fill = "darkgreen", alpha = .4,  position = position_nudge(y = 0.15)) +
+  labs(x = "Residuals", y = NULL) +
+  scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0,0))) +
+  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
+  theme_classic(base_size = 18) +
+  theme(
+    axis.text.x = element_text(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+trait.organization
+
+
+library(patchwork)
+combined_figure_lat_and_temp_residuals <-
+  trait.groups +
+  trait.motivation +
+  trait.organization +
+  plot_layout(ncol = 1, guides = "collect") +
+  theme(
+    axis.title.x = element_text(size = 16),
+    plot.margin = margin(5, 5, 5, 5)
+  )
+
+combined_figure_lat_and_temp_residuals
