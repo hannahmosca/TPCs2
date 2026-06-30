@@ -335,8 +335,9 @@ dataset_types <- distinct_curves %>%
     decreasing_side_TF = case_when(curve_ID %in% c(ctmax_topt_list, ctmax_only_list, breadth_list, dec_unbounded_NO_list) ~ TRUE, TRUE ~ FALSE)) %>%
   ungroup()
 
-
-
+topt_curves_01 <- dataset_types %>%
+  filter(topt_TF == TRUE) #217 is magic number here
+topt_list_01 <- topt_curves_01$curve_ID
 #### 08. OUTPUT ####
 curves <- curves %>%
   left_join(dataset_types, join_by(curve_ID))
@@ -359,29 +360,17 @@ curves <- curves %>%
   mutate(n_unique_temps_capped = factor(n_unique_temps_capped,
                                         levels = c("7+", "6", "5", "4")))
 
+counts <- curves %>%
+  count(dataset_type)
 
 a <- ggplot(data = curves, aes(x = dataset_type, fill = (n_unique_temps_capped))) +
   geom_bar(position = "stack", colour = "black",linewidth = 0.3) +
-  scale_fill_manual(values = c("4"= "#CDEDF6",
-                               "5" = "#208AAE",
-                               "6" ="#70161E",
-                               "7+" = "#0D2149")) +
+  scale_fill_manual(values = c("4"= "#CDEDF6","5" = "#208AAE","6" ="#70161E","7+" = "#0D2149")) +
   xlab(NULL) +
   ylab("Number of datasets") +
   scale_y_continuous(expand = expansion(mult = 0.00),
                      breaks = seq(0,150,25)) +
-  scale_x_discrete(
-    labels = c(
-      "full_curve" = "Full curve",
-      "left_bound_withopt" = "T-min + T-opt",
-      "right_bound_withopt" = "T-max + T-opt", 
-      "topt" = "T-opt only",
-      "left_bound" = "T-min only",
-      "right_bound" = "T-max only",
-      "unbounded_increasing" = "Unbound, inc",
-      "unbounded_decreasing" = "Unbound, dec",
-      "irregular" = "Irregular")) +
-  coord_flip() +
+  scale_x_discrete(labels = c("full_curve" = "Full curve", "left_bound_withopt" = "T-min + T-opt","right_bound_withopt" = "T-max + T-opt", "topt" = "T-opt only", "left_bound" = "T-min only","right_bound" = "T-max only","unbounded_increasing" = "Unbound, inc", "unbounded_decreasing" = "Unbound, dec","irregular" = "Irregular")) +coord_flip() +
   theme_classic() +
   theme(
     legend.position = "right",
