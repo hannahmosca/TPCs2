@@ -54,7 +54,7 @@ optimum_check <- data_scaled %>%
   summarize(peak_pos = which.max(response_scaled),
             prop_up = mean(diff(response_scaled[1:peak_pos]) >= 0), # proportion of response changes before the peak that are increasing, ie is mostly increasing?
             prop_down = mean(diff(response_scaled[peak_pos:n()]) <= 0),
-            has_optimum = peak_pos > 1 & peak_pos < n() & prop_up >= 0.75 & prop_down >= 0.75)
+            has_optimum = peak_pos > 1 & peak_pos < n() & prop_up >= 0.50 & prop_down >= 0.50)
 
 optimum_curves2 <- optimum_check %>%
   filter(has_optimum == TRUE)
@@ -67,14 +67,14 @@ optimum_curves2_list <- c(optimum_curves2$curve_ID)
 setdiff(optimum_curves1_list, optimum_curves2_list) #all curves in 1 are in 2 check
 
 # In optimum_curves2 but not optimum_curves1
-setdiff(optimum_curves2_list, optimum_curves1_list) #23
+setdiff(optimum_curves2_list, optimum_curves1_list) #82
 difference <- setdiff(optimum_curves2_list, optimum_curves1_list)
+#446 is should be in the just increasing kind
 
 #in optimum_2 curves but not in opt_list from first script  ##interesting, 6 curves that should be in opt list, wonder where they were?
 setdiff(optimum_curves2_list, topt_list_01) 
 difference <- setdiff(optimum_curves2_list, topt_list_01)
-
-setdiff(topt_list_01, optimum_curves2_list) 
+setdiff(topt_list_01, optimum_curves2_list) # in opt 1 list but not in opt 2
 difference <- setdiff(topt_list_01, optimum_curves2_list)
 
 #### 04. vis testing station ####
@@ -91,6 +91,8 @@ ggplot() +
              aes(x = test_temp, y = response_scaled)) +
   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 1,
                       labeller = labeller(curve_ID = curve_labels))
+
+
 
 ####05. Handling datasets without an optimum ####
 non_opt <- data_scaled %>%
