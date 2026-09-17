@@ -1302,5 +1302,5 @@ saveRDS(all_preds, file = here('processed-data', "all_model_predictions.RDS"))
 saveRDS(all_paramaters, file = here('processed-data', "all_model_params.RDS"))
 
 
-
+#### flagging that these were fit before duplicate curve was found on 2026-07-27, so must remove curveID #29 from future data ####
 
