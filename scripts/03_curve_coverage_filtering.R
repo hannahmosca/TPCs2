@@ -335,9 +335,20 @@ dataset_types <- distinct_curves %>%
     decreasing_side_TF = case_when(curve_ID %in% c(ctmax_topt_list, ctmax_only_list, breadth_list, dec_unbounded_NO_list) ~ TRUE, TRUE ~ FALSE)) %>%
   ungroup()
 
+irregular <- dataset_types %>%
+  filter(dataset_type == "irregular")
+write_csv(irregular, file = here("processed-data", "irrgular.csv"))
+
 topt_curves_01 <- dataset_types %>%
-  filter(topt_TF == TRUE) #217 is magic number here
+  filter(topt_TF == TRUE) #217 is magic number here, need to get rid of 446 and put that in increasing only
+topt_curves_01 <- topt_curves_01 %>%
+  filter(curve_ID != 446) #216 is magic number here, need to get rid of 446 and put that in increasing only
+
+setdiff(topt_list_01, topt_list_02)
 topt_list_01 <- topt_curves_01$curve_ID
+topt_list_02 <- c(211, 200, 256, 278, 267, 289, 300, 311, 359, 362, 369, 368, 365, 367, 366, 370, 375, 377, 379, 382,380, 385, 387, 389, 386, 388, 396, 397, 395, 398, 391, 392, 390, 393, 400, 399, 402, 401, 404, 403,407, 406, 408, 409, 7, 410, 10, 14, 15, 38, 40, 53, 54, 83, 89, 88, 96, 87, 86, 94,84, 92, 91, 16, 20, 18, 30, 51, 52, 60, 61, 56, 59, 62, 76, 67, 80, 71, 78, 70,81, 69, 65, 73, 64, 113, 114, 126, 127, 130, 135, 139, 140, 144, 147, 148, 151, 154, 150, 153,149, 152, 157, 158, 160, 161, 162, 163, 164, 165, 166, 170, 175, 174, 171, 173, 187, 185, 186, 191,179, 177, 176, 181, 182, 180, 183, 28, 25, 192, 193, 194, 198, 202, 199, 201, 205, 206, 203, 204, 207, 208, 210, 212, 221, 220, 228, 232, 231, 235, 213, 216, 218, 215, 219, 214, 217, 239, 238, 246,249, 247, 248, 250, 251, 252, 254, 255, 261, 264, 260, 274, 273, 292, 308, 305, 310, 306, 315, 318,294, 304, 303, 321, 328, 326, 327, 325, 341, 345, 349, 350, 417, 423, 424, 425, 427, 432, 433, 434,435, 437, 436, 439, 438, 440, 441, 442, 444, 445, 451, 448, 449, 450, 447, 455)
+
+
 #### 08. OUTPUT ####
 curves <- curves %>%
   left_join(dataset_types, join_by(curve_ID))

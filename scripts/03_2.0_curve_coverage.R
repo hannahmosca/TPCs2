@@ -26,7 +26,7 @@ data_scaled <- curves %>%
   ungroup() %>%
   distinct(curve_ID, test_temp, Trait.Group, mean_response, response_scaled, response_unit)
 
-#### 03. add columns for datasets that are left bounded, right bounded, and reach an optimum ####
+#### 03. add columns for datasets that are (1) left bounded, (2) right bounded, or/and (3) reach an optimum ####
 
 #optimum: curves that have a max response sandwiched by responses that are less on both sides ...ie go up and come down
 

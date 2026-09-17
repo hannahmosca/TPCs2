@@ -19,7 +19,7 @@ curves <- read_csv(here("processed-data","FishTherm.csv")) %>%
 taxa <- read_csv(here("processed-data", "taxonomy.csv"))
 
 #how many curves?
-length(unique(curves$curve_ID)) #457
+length(unique(curves$curve_ID)) #456
 #how many different studies?
 length(unique(curves$study_ID)) #118
 #how many unique species?
@@ -40,7 +40,7 @@ curvesperstudy <- curves_unique %>%
   group_by(study_ID) %>%
   slice(1)
 
-mean_datasets_per_study <- mean(curvesperstudy$datasets_per_study, na.rm = TRUE) #3.87
+mean_datasets_per_study <- mean(curvesperstudy$datasets_per_study, na.rm = TRUE) #3.86
 median_datasets_per_study <- median(curvesperstudy$datasets_per_study, na.rm = TRUE) #2
 max <- max(curvesperstudy$datasets_per_study, na.rm = TRUE) #20
 
@@ -72,7 +72,7 @@ curves_unique %>%
 
 # brackish         18
 # freshwater      185
-# marine          254
+# marine          253
 
 
 ## treatments and life stages #
@@ -84,7 +84,7 @@ curves_unique %>%
  # Locomotion           89
  # Metabolism          141
  # Reproduction         20
- # Somatic Growth      122
+ # Somatic Growth      121
  # Survival             18
 
 curves_unique %>% 
@@ -93,7 +93,7 @@ curves_unique %>%
 # 1 adult               104
 # 2 embryo               23
 # 3 fry                   3
-# 4 juvenile            214
+# 4 juvenile            213
 # 5 larvae               13
 # 6 NA                  100
 
@@ -107,18 +107,18 @@ curves_unique %>%
 # Salinity = 45
 # Size = 32
 # resting or swimming = 6
-# NA = 253
+# NA = 252
 
 ## acute or batch acclimated
 curves_unique %>% 
   count(curve_type)
-#134 acute, 323 batch aclim
+#134 acute, 322 batch aclim
 
 # response measured
 curves_unique %>%
   count(response_sample_type)
 
-#40 indv, 414 mean, 3 median
+#40 indv, 413 mean, 3 median
   
 
 #### 5. Data visualization ####

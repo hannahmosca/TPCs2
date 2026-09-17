@@ -17,7 +17,7 @@ library(stringr)
 library(dplyr)
 
 #### 2. load most up to date extraction datasheet ####
-filename <- "extracted_data.csv"
+filename <- "data_extraction_1_19_2026.csv"
 raw_data <- read.csv(here("raw-data", filename))
 
 #### 3. initial data cleaning ####
@@ -331,8 +331,15 @@ curves_new <- curves_new %>%
   mutate(treatment_2_type = ifelse(treatment_2_type == "mass", "Size", treatment_2_type)) %>%
   mutate(treatment_2_type = ifelse(treatment_2_type == "satiation", "Ration", treatment_2_type))
 
+#### duplicated curve found 2026-07-27 ####
+duplicated_curve <- curves_new %>%
+  filter(study_ID == "2_0028") %>%
+  filter(given_trait_name == "specific-growth-rate-mass") #29 is the duplicated incorrect data entry
+## removing curve ID 29 from data ##
+curves_new <- curves_new %>%
+  filter(curve_ID != "29")
 
-length(unique(curves_new$curve_ID)) #457 unique curve_IDs
+length(unique(curves_new$curve_ID)) #456 unique curve_IDs
 
 curves_new <- curves_new %>%
   rename(raw_response_type = response_type) %>%
