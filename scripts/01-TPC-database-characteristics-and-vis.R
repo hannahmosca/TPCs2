@@ -1,8 +1,5 @@
 #### ============================================================
-#### Script info
-#### ============================================================
-# Title: TPC-data-characteristics.R
-# Description:
+# TPC-database-characteristics.R
 # Summarize FishTherm dataset characteristics
 #### ============================================================
 #### 1. load packages ####
