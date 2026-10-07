@@ -51,13 +51,14 @@ df1 <- classification(species_name, db = 'itis')
 #103 found, 3 not found, 106 total
 
 # make and rotate dataframe 
-taxonmy <- map_dfr(.x = df1, ~ data.frame(.x), .id = 'species_name') %>%
+taxonomy <- map_dfr(.x = df1, ~ data.frame(.x), .id = 'species_name') %>%
   pivot_wider(id_cols = species_name, names_from = rank, values_from = c(name, id)) %>%
   rename_with(~ str_replace(.x, 'name_', '')) %>%
   rename_with(~ str_replace(.x, 'id_', 'wormsid_')) %>%
   janitor::clean_names()
-taxonmy <- taxonmy %>%
-  left_join(species_filtered %>% select(species_ID, species_name), join_by(species_name))
+taxonomy1 <- taxonomy %>%
+  left_join(species_filtered %>% select(species_ID, species_name), join_by(species_name)) %>%
+  select(species_ID, species_name, kingdom, subkingdom, infrakingdom, phylum, subphylum, infraphylum, superclass, class, superorder, order, suborder, family, subfamily, genus, species, wormsid_genus, wormsid_species)
 
 write.csv(taxonmy, here('processed-data', 'taxonomy.csv')) 
 ##added 3 missing species information manually
