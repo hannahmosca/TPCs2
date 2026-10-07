@@ -261,7 +261,8 @@ partial_decline_list <- partial_decline_list[!partial_decline_list %in% manual_r
 flat_unbounded <- unbounded_curve_direction %>%
   filter(direction == "flat") #63 - survival curve with 100% across all temps, move to irregular 
 ggplot() +
-  geom_point(data = flat_unbounded,
+  geom_point(data = data_scaled %>%
+               filter(curve_ID %in% irregular_list),
              aes(x = test_temp, y = response_scaled)) +
   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 1,
                       labeller = labeller(curve_ID = curve_labels))

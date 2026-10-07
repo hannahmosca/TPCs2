@@ -14,22 +14,22 @@ install.packages("rTPC")
 library(rTPC)
 
 #### 01. load data ####
-parameters <- readRDS(here("processed-data", "tpcs_with_fitted_params.RDS"))
+parameters <- readRDS(here("processed-data", "tpcs_with_fitted_params_10_6.RDS"))
 
 #filter out irregular and decreasing to get datasets possibly eligible for act. eng
 ee <- parameters %>%
-  filter(dataset_type %in% c("full_curve", "left_bound_withopt", "unbounded_increasing", "topt", 
-                             "left_bound"))
+  filter(dataset_type %in% c("full_curve", "full_rise_with_opt", "partial_rise", "optimum_only", 
+                             "partial_rise_with_min"))
 
-### visually filtering out ones that are just topt for the activation energy testing###
-act_eng <- unique(ee$curve_ID)
-remove <- c(56, 438, 439, 208, 53, 54, 126, 108, 144, 177, 179, 182, 185, 190, 186, 199, 201, 207, 217, 219, 207, 292, 321, 323, 344, 373, 374, 368, 369,377, 417, 429, 431, 436, 438, 461)
+# ### visually filtering out ones that are just topt for the activation energy testing###
+# act_eng <- unique(ee$curve_ID)
+# remove <- c(56, 438, 439, 208, 53, 54, 126, 108, 144, 177, 179, 182, 185, 190, 186, 199, 201, 207, 217, 219, 207, 292, 321, 323, 344, 373, 374, 368, 369,377, 417, 429, 431, 436, 438, 461)
+# 
+# subset <- ee %>%
+#   filter(!(curve_ID %in% remove))
+# 
 
-subset <- ee %>%
-  filter(!(curve_ID %in% remove))
-
-Ea_curves <- unique(subset$curve_ID)
-
+Ea_curves <- unique(ee$curve_ID)
 
 curves <- read.csv(here("processed-data", "FishTherm.csv"))
 sub_curves <- curves %>%
@@ -37,7 +37,7 @@ sub_curves <- curves %>%
 sub_curves <- sub_curves %>%
   select(curve_ID, test_temp, response_value) %>%
   distinct() %>%
-  left_join(subset %>% select(curve_ID, topt_TF, topt))
+  left_join(ee %>% select(curve_ID, topt_TF, topt))
 
 
 library(dplyr)
@@ -49,10 +49,18 @@ arrhenius_fits <- sub_curves %>%
   map_df(function(df){
     
     topt_val <- unique(df$topt)[1]
-    df <- df %>%
-      filter(test_temp <= topt_val) %>%
-      mutate(K = ifelse(test_temp < 150, test_temp + 273.15, test_temp))
     
+    # if Topt exists, use only the rising portion (T <= Topt).
+    # if Topt is NA, use all observed temperatures.
+    if (!is.na(topt_val)) {
+      df <- df %>%
+        filter(test_temp <= topt_val)
+    }
+    
+    df <- df %>%
+      mutate(K = ifelse(test_temp < 150,
+                        test_temp + 273.15,
+                        test_temp))
     if(nrow(df) < 4){
       return(tibble(
         curve_ID = unique(df$curve_ID),
@@ -121,7 +129,7 @@ sub_curves_2 <- sub_curves_2 %>%
 sub_curves_3 <- sub_curves_2 %>%
   filter(R2 > 0.5)
 
-sub_curves_4 <- sub_curves_3 %>%
+sub_curves_4 <- sub_curves_3 %>% #157
   filter(pval < 0.05)
 
 mean(sub_curves_4$e_arr)
@@ -136,6 +144,6 @@ parameters1 <- parameters %>%
   rename(y_value_tmin = y_value_ctmin) %>%
   rename(y_value_tmax = y_value_ctmax)
 
-saveRDS(parameters1, here("processed-data", "tpcs_with_fitted_params_with_act_eng.RDS"))
+saveRDS(parameters1, here("processed-data", "tpcs_with_fitted_params_with_act_eng_10_6.RDS"))
 
 
