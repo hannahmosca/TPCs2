@@ -55,20 +55,20 @@ optimum_curves2_list <- c(optimum_curves2$curve_ID)
 # #446 is should be in the just increasing kind
 # #437, 440, 455 should be in optima estimatable // topt list
 
-# vis check #
-responses <- data_scaled %>%
-  select(curve_ID, Trait.Group, response_unit) %>%
-  distinct()
-curve_labels <- responses %>%
-  mutate(label = paste0(Trait.Group, " (", curve_ID, ")")) %>%
-  select(curve_ID, label) %>%
-  deframe()
-ggplot() +
-  geom_point(data = data_scaled %>%
-               filter(curve_ID %in% difference2),
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 1,
-                      labeller = labeller(curve_ID = curve_labels))
+# # vis check #
+# responses <- data_scaled %>%
+#   select(curve_ID, Trait.Group, response_unit) %>%
+#   distinct()
+# curve_labels <- responses %>%
+#   mutate(label = paste0(Trait.Group, " (", curve_ID, ")")) %>%
+#   select(curve_ID, label) %>%
+#   deframe()
+# ggplot() +
+#   geom_point(data = data_scaled %>%
+#                filter(curve_ID %in% difference2),
+#              aes(x = test_temp, y = response_scaled)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 1,
+#                       labeller = labeller(curve_ID = curve_labels))
 
 ## manual/visual reassignment for topt ##
 
@@ -180,10 +180,10 @@ non_opt <- non_opt %>%
   mutate(
     first_temp = first(test_temp),
     first_response = first(response_scaled),
-    left_bound  = ifelse(first_response <= 0.10, "yes", "no"),
+    left_bound  = ifelse(first_response <= 0.25, "yes", "no"),
     last_temp = last(test_temp),
     last_response = last(response_scaled),
-    right_bound = ifelse(last_response <= 0.10, "yes", "no")
+    right_bound = ifelse(last_response <= 0.25, "yes", "no")
   ) %>%
   ungroup()
 
@@ -196,7 +196,7 @@ ggplot() +
   geom_point(data = non_opt %>%
                filter(left_bound == "yes"),
              aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 2,
+  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 2,
                       labeller = labeller(curve_ID = curve_labels))
 partial_rise_with_min_list <- c(unique(partial_rise_with_min$curve_ID)) #no manual reassignment 
 
@@ -230,31 +230,31 @@ unbounded_curve_direction <- data_scaled %>%
 ## unbounded, increasing ##
 increasing_unbounded <- unbounded_curve_direction %>%
   filter(direction == "increasing")
-partial_rise <- c(unique(increasing_unbounded$curve_ID)) #150
+partial_rise <- c(unique(increasing_unbounded$curve_ID)) #150 now #120
 
 #vis check
 ggplot() +
   geom_point(data = increasing_unbounded,
              aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 9 ,
+  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 1,
                       labeller = labeller(curve_ID = curve_labels))
 
-#155, 344, 353, 354 -- move to flat, ie probably irregular (haven't done this yet!)
+#155, 344, 354, 353, -- move to flat, ie probably irregular (haven't done this yet!)
 manual_reass_list_remove_PR <- c(155, 344, 353, 354)
 partial_rise_list <- partial_rise[!partial_rise %in% manual_reass_list_remove_PR]
 
 ## unbounded, decreasing ##
 decreasing_unbounded <- unbounded_curve_direction %>%
   filter(direction == "decreasing")
-partial_decline_list <- c(unique(decreasing_unbounded$curve_ID)) #44
+partial_decline_list <- c(unique(decreasing_unbounded$curve_ID)) #39
 #vis check
 ggplot() +
   geom_point(data = decreasing_unbounded,
              aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 3,
+  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 2,
                       labeller = labeller(curve_ID = curve_labels))
-#197, 209, 356, 358, 378 - -- move to flat, ie probably irregular 
-manual_reass_list_remove_PD <- c(197, 209, 356, 358, 378)
+#209, 356, 358, 378 - -- move to flat, ie probably irregular 
+manual_reass_list_remove_PD <- c(209, 356, 358, 378)
 partial_decline_list <- partial_decline_list[!partial_decline_list %in% manual_reass_list_remove_PD]
 
 ## flat 
@@ -270,7 +270,6 @@ irregular <- unique(flat_unbounded$curve_ID)
 
 irregular_list <- c(irregular, manual_reass_list_remove_PD, manual_reass_list_remove_PR)
 
-#view 384?
 
 
 #### putting it together ####
@@ -282,19 +281,75 @@ curve_ids <- c(unique(responses$curve_ID))
 setdiff(curve_ids, all)
 setdiff(all, curve_ids)
 
-
 distinct_curves <- curves %>%
   group_by(curve_ID) %>%
   mutate(dataset_type = case_when(
     curve_ID %in% full_curve_list ~ "full_curve",
-    curve_ID %in% optimum_only_list ~ "topt",
-    curve_ID %in% full_rise_with_opt_list ~ "left_bound_withopt",
-    curve_ID %in% full_decline_with_opt_list ~ "right_bound_withopt",
-    curve_ID %in% partial_rise_with_min_list ~ "left_bound",
-    curve_ID %in% partial_decline_with_max_list ~ "right_bound",
-    curve_ID %in% partial_rise_list ~ "unbounded_increasing",
-    curve_ID %in% partial_decline_list ~ "unbounded_decreasing",
+    curve_ID %in% optimum_only_list ~ "optimum_only",
+    curve_ID %in% full_rise_with_opt_list ~ "full_rise_with_opt",
+    curve_ID %in% full_decline_with_opt_list ~ "full_decline_with_opt",
+    curve_ID %in% partial_rise_with_min_list ~ "partial_rise_with_min",
+    curve_ID %in% partial_decline_with_max_list ~ "partial_decline_with_max",
+    curve_ID %in% partial_rise_list ~ "partial_rise",
+    curve_ID %in% partial_decline_list ~ "partial_decline",
     curve_ID %in% irregular_list ~ "irregular",
     TRUE ~ NA_character_
   ))
 
+dataset_types <- distinct_curves %>%
+  group_by(curve_ID) %>%
+  select(curve_ID, dataset_type) %>%
+  distinct() %>%
+  mutate(topt_TF = dataset_type %in% c("full_curve","optimum_only","full_rise_with_opt","full_decline_with_opt"),
+  thermal_min_TF = dataset_type %in% c("full_curve","full_rise_with_opt", "partial_rise_with_min"),
+  thermal_max_TF = dataset_type %in% c("full_curve","full_decline_with_opt", "partial_decline_with_max"),
+  tolerance_breadth_TF = dataset_type %in% c("full_curve"),
+  increasing_side_TF = dataset_type %in% c("optimum_only", "full_rise_with_opt", "partial_rise_with_min", "full_curve", "partial_rise"),
+  decreasing_side_TF = dataset_type %in% c("optimum_only", "full_decline_with_opt", "partial_decline_with_max", "full_curve", "partial_decline"))
+
+#### output ####
+curves <- curves %>%
+  left_join(dataset_types, join_by(curve_ID))
+
+write.csv(curves, file = here('processed-data', "fishtherm_curve_coverage_sorted_updated10_5.csv"))
+
+
+
+
+#### 09. visualization ####
+curves <- curves %>%
+  select(n_unique_temps, curve_ID, study_ID, species_ID, given_trait_name, Trait.Group, Trait.motivation, organization, curve_type, land_or_sea, abs_latitude, habitat_water, dataset_type, topt_TF, thermal_min_TF, thermal_max_TF, increasing_side_TF, decreasing_side_TF) %>%
+  distinct() %>%
+  mutate(n_unique_temps_capped = ifelse(n_unique_temps >= 7, "7+", n_unique_temps))
+
+## curve coverage figures ##
+
+## want to order it by how much is most seen
+curves <- curves %>%
+  mutate(dataset_type = factor(
+    dataset_type, levels = c("partial_decline_with_max","full_decline_with_opt", "partial_rise_with_min", "full_curve","partial_decline", "full_rise_with_opt", "irregular","partial_rise", "optimum_only"))) %>%
+  mutate(n_unique_temps_capped = factor(n_unique_temps_capped,
+                                        levels = c("7+", "6", "5", "4")))
+
+counts <- curves %>%
+  count(dataset_type)
+
+a <- ggplot(data = curves, aes(x = dataset_type, fill = (n_unique_temps_capped))) +
+  geom_bar(position = "stack", colour = "black",linewidth = 0.3) +
+  scale_fill_manual(values = c("4"= "#CDEDF6","5" = "#208AAE","6" ="#70161E","7+" = "#0D2149")) +
+  xlab(NULL) +
+  ylab("Number of datasets") +
+  scale_y_continuous(expand = expansion(mult = 0.00),
+                     breaks = seq(0,150,25)) +
+  scale_x_discrete(labels = c("full_curve" = "Full curve", "left_bound_withopt" = "T-min + T-opt","right_bound_withopt" = "T-max + T-opt", "topt" = "T-opt only", "left_bound" = "T-min only","right_bound" = "T-max only","unbounded_increasing" = "Unbound, inc", "unbounded_decreasing" = "Unbound, dec","irregular" = "Irregular")) +coord_flip() +
+  theme_classic() +
+  theme(
+    legend.position = "right",
+    axis.text.y = element_text(size = 14),
+    axis.text.x = element_text(size = 14),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+a
+ggsave("curve_coverage_by_temperature_resolution.pdf", plot = a, path = here("figures"), width = 6, height = 4)
