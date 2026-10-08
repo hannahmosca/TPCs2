@@ -1,7 +1,6 @@
 #### ============================================================
-#### Script info
+#### Script: curve_coverage_filtering.R
 #### ============================================================
-# Title: curve_coverage_filtering.R
 # Classifies each FishTherm curve by curve coverage (e.g., full curve, T-min only, T-max only, T-opt only, bounded-with-optimum, unbounded) using scaled responses and simple shape/boundedness rules, along with visualizingm then writes curve-type labels and coverage flags back to a processed dataset.
 #### ============================================================
 
@@ -341,6 +340,7 @@ write_csv(irregular, file = here("processed-data", "irrgular.csv"))
 
 topt_curves_01 <- dataset_types %>%
   filter(topt_TF == TRUE) #217 is magic number here, need to get rid of 446 and put that in increasing only
+
 topt_curves_01 <- topt_curves_01 %>%
   filter(curve_ID != 446) #216 is magic number here, need to get rid of 446 and put that in increasing only
 
