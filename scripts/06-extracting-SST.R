@@ -81,6 +81,7 @@ library(tidyterra)
   
   #check where points fall, 
   new_my_points <- vect(unique_lat_long, geom = c("longitude", "latitude"), crs = crs(sst_monthly))
+  #save my new points here
   ggplot() +
     geom_spatraster(data = sst_monthly[[1]]) +
     geom_spatvector(data = new_my_points, color = "red")
@@ -108,7 +109,7 @@ library(tidyterra)
     dplyr::select(latitude, longitude, everything())
   
   saveRDS(point_vals, file = here("processed-data", "marine_sst_all_temporal_mypoints.RDS"))
-  
+sst <- readRDS(here("processed-data", "marine_sst_all_temporal_mypoints.RDS"))
   
   ## computing summary stats across layers
   mean_raster <- app(sst_monthly, mean, na.rm = TRUE)
@@ -157,8 +158,9 @@ library(tidyterra)
   d
 
   #### 05 extract my point data ####
-
-  #extract points from non discharge masked data
+sst_summary <- rast((here("processed-data", "sst_monthly_summarized.nc")))
+new_my_points <- 
+  #extract points 
   point_means <- terra::extract(sst_summary[[1]], new_my_points, method = "simple", search_radius = 30000)
   point_sd <- terra::extract(sst_summary[[2]], new_my_points, method = "simple", search_radius = 30000)
   point_min <- terra::extract(sst_summary[[3]], new_my_points, method = "simple", search_radius = 30000)
@@ -176,4 +178,58 @@ library(tidyterra)
   ## save my point data
   saveRDS(all, file = here("processed-data", "my_points_sst_summary.RDS"))
   
+  
+  ### ADD TO END OF SCRIPT
+  #load point data
+  datasets <- read.csv(here('processed-data', 'FishTherm.csv'))
+  ##get marine fish
+  marine <- datasets %>%
+    filter(land_or_sea == "oceanic") %>%
+    filter(!(is.na(latitude))) %>%
+    filter(!(is.na(longitude)))
+  
+  #get lat/long
+  unique_lat_long <- marine %>%
+    dplyr::select(latitude, longitude, study_ID) %>%
+    distinct()
+  
+  ## read in corrupt data
+  all = readRDS(here("processed-data", "my_points_sst_summary.RDS"))
+  
+  ## get rid of removed data
+  all = all[-26,]
+  
+  all$latitude == unique_lat_long$latitude #not
+  
+  ## make sure they are the same almost
+  test = data.frame(old_lat = all$latitude,
+                    fishtherm_lat = unique_lat_long$latitude) %>% view
+  
+  ## assign correct value
+  all$latitude = unique_lat_long$latitude
+  
+  ## do the same for longitude
+  all$longitude == unique_lat_long$longitude
+  
+  ## make sure they are the same almost
+  test = data.frame(old_lon = all$longitude,
+                    fishtherm_lon = unique_lat_long$longitude) %>% view
+  
+  ## assign correct value
+  all$longitude = unique_lat_long$longitude
+  
+  
+  ## save as non-rds
+  write.csv(all, "processed-data/new_my_points_sst_summary.csv", row.names = F)
+  
+  
+  ## make sure it saved properly
+  all_saved <- read.csv("processed-data/new_my_points_sst_summary.csv")
+  
+  ## check
+  all_saved$longitude == unique_lat_long$longitude
+  
+  ## make sure they are the same almost
+  test = data.frame(old_lon = all_saved$longitude,
+                    fishtherm_lon = unique_lat_long$longitude)
   

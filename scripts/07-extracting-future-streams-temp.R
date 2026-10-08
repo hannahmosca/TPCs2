@@ -229,3 +229,58 @@ d <-  ggplot(df) +
   
   ## save my point data
   saveRDS(all, file = here("processed-data", "my_points_freshwater_summary.RDS"))
+  
+  
+
+  ## load required datasets
+  datasets <- read.csv(here('processed-data', 'FishTherm.csv'))
+  
+  #get freshwater fish
+  freshwater <- datasets %>% 
+    filter(land_or_sea == "terrestrial") %>%
+    filter(!(is.na(latitude))) %>%
+    filter(!(is.na(longitude))) 
+  #get lat/long
+  unique_lat_long <- freshwater %>%
+    select(latitude, longitude) %>%
+    distinct()
+  
+  
+  ## read in corrupt data
+  all = readRDS(here("processed-data", "my_points_freshwater_summary.RDS"))
+  
+  
+  all$latitude == unique_lat_long$latitude #not
+  
+  all = all[-70,]
+  
+  ## make sure they are the same almost
+  test = data.frame(old_lat = all$latitude,
+                    fishtherm_lat = unique_lat_long$latitude) %>% view
+  
+  ## assign correct value
+  all$latitude = unique_lat_long$latitude
+  
+  ## do the same for longitude
+  all$longitude == unique_lat_long$longitude
+  
+  ## make sure they are the same almost
+  test = data.frame(old_lon = all$longitude,
+                    fishtherm_lon = unique_lat_long$longitude) %>% view
+  
+  ## assign correct value
+  all$longitude = unique_lat_long$longitude
+  
+  
+  ## save as non-rds
+  write.csv(all, "processed-data/new_my_points_freshwater_summary.csv", row.names = F)
+  ## make sure it saved properly
+  all_saved <- read.csv("processed-data/new_my_points_freshwater_summary.csv")
+  
+  ## check
+  all_saved$longitude == unique_lat_long$longitude
+  
+  ## make sure they are the same almost
+  test = data.frame(old_lon = all_saved$longitude,
+                    fishtherm_lon = unique_lat_long$longitude)
+  
