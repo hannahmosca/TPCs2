@@ -21,13 +21,6 @@ ee <- parameters %>%
   filter(dataset_type %in% c("full_curve", "full_rise_with_opt", "partial_rise", "optimum_only", 
                              "partial_rise_with_min"))
 
-# ### visually filtering out ones that are just topt for the activation energy testing###
-# act_eng <- unique(ee$curve_ID)
-# remove <- c(56, 438, 439, 208, 53, 54, 126, 108, 144, 177, 179, 182, 185, 190, 186, 199, 201, 207, 217, 219, 207, 292, 321, 323, 344, 373, 374, 368, 369,377, 417, 429, 431, 436, 438, 461)
-# 
-# subset <- ee %>%
-#   filter(!(curve_ID %in% remove))
-# 
 
 Ea_curves <- unique(ee$curve_ID)
 
@@ -126,8 +119,10 @@ sub_curves_2 <- sub_curves %>%
 sub_curves_2 <- sub_curves_2 %>%
   filter(converged == TRUE)
 
-sub_curves_3 <- sub_curves_2 %>%
+sub_curves_3 <- sub_curves_2 %>% #235 (ask nikki ab this, going all the way down to 157 after filting for that pval)
   filter(R2 > 0.5)
+
+mean(sub_curves_3$e_arr)
 
 sub_curves_4 <- sub_curves_3 %>% #157
   filter(pval < 0.05)
