@@ -36,19 +36,24 @@ species_filtered <- species_filtered %>%
     species_name == "gambusia holbrooki" ~ "Gambusia affinis",
     species_name == "Channa striatus" ~ "Channa striata",
     species_name == "Salvelinus  alpinus" ~ "Salvelinus alpinus",
-    species_name == "Onychostoma barbatula" ~ "Onychostoma barbatulum",
+    species_name == "Onychostoma barbatulum" ~ "Onychostoma barbatula",
     species_name == "Zoarces vivparus" ~ "Zoarces viviparus",
     species_name == "Zoramia leptacantha" ~ "Zoramia leptacanthus",
     species_name == "Centropristis  striata" ~ "Centropristis striata",
     species_name == "Chromis  atripectoralis" ~ "Chromis atripectoralis",
+    species_name == "Fundulus heteroclitus" ~ "Fundulus heteroclitus heteroclitus",
+    species_name == "fundulus heteroclitus" ~ "Fundulus heteroclitus macrolepidotus",
     TRUE ~ species_name   
-  ))
+  )) %>%
+  mutate(species_name = if_else(species_ID == "SP53", "Oncorhynchus clarkii pleuriticus", species_name),
+         species_name = if_else(species_ID == "SP79", "Oncorhynchus clarkii stomias", species_name))
+
 # extract unique species names
 species_name <- unique(species_filtered$species_name) #one that is duplicated, fundilitis heterolitus, but one of them is a sub-species
 
 # get taxonomic classification for each species using ITIS
 df1 <- classification(species_name, db = 'itis')
-#103 found, 3 not found, 106 total
+#101 found, 6 not found, 107 total
 
 # make and rotate dataframe 
 taxonomy <- map_dfr(.x = df1, ~ data.frame(.x), .id = 'species_name') %>%
@@ -57,8 +62,8 @@ taxonomy <- map_dfr(.x = df1, ~ data.frame(.x), .id = 'species_name') %>%
   rename_with(~ str_replace(.x, 'id_', 'wormsid_')) %>%
   janitor::clean_names()
 taxonomy1 <- taxonomy %>%
-  left_join(species_filtered %>% select(species_ID, species_name), join_by(species_name)) %>%
-  select(species_ID, species_name, kingdom, subkingdom, infrakingdom, phylum, subphylum, infraphylum, superclass, class, superorder, order, suborder, family, subfamily, genus, species, wormsid_genus, wormsid_species)
-
-write.csv(taxonmy, here('processed-data', 'taxonomy.csv')) 
-##added 3 missing species information manually
+  left_join(species_filtered %>% select(species_ID, species_name, subspecies), join_by(species_name)) %>%
+  select(species_ID, kingdom, phylum, superclass, class, superorder, order, suborder, family, subfamily, genus, wormsid_genus, wormsid_genus, species_name, wormsid_species, subspecies.y) %>%
+  rename(subspecies = subspecies.y)
+write.csv(taxonomy1, here('processed-data', 'taxonomy1.csv')) 
+##added 6 missing species info/ sub species info  manually
