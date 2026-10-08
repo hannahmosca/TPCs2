@@ -12,8 +12,7 @@ library(tidyverse)
 rm(list=ls())
 #### 01 load data ####
 curves <- read.csv(here('processed-data', 'fishtherm_curve_coverage_sorted_updated10_5.csv')) %>%
-  select(-(X)) %>%
-  select(-(X.1))
+  select(-(X))
 model_preds <- readRDS(here('processed-data', 'all_model_predictions.RDS')) %>%
   filter(curve_ID != 29) ##### flagging that these were fit before duplicate curve was found on 2026-07-27, so must remove curveID #29 from future data ####
 params <- readRDS(here('processed-data', 'all_model_params.RDS')) %>%
@@ -27,14 +26,14 @@ length(unique(model_preds$curve_ID)) #456
 #### 03 filter out irregular datasets ####
 irregular <- curves %>%
   filter(dataset_type == "irregular")
-irregular_list <- c(unique(irregular$curve_ID)) #10 datasets
+irregular_list <- c(unique(irregular$curve_ID)) #9 datasets
 
 model_preds_1 <- model_preds %>%
-  filter(!(curve_ID %in% irregular_list)) #446 now
+  filter(!(curve_ID %in% irregular_list)) #447 now
 params_1 <- params %>%
-  filter(!(curve_ID %in% irregular_list)) #446 now
+  filter(!(curve_ID %in% irregular_list)) #447 now
 model_evaluations_1 <- model_evaluations %>%
-  filter(!(curve_ID %in% irregular_list)) #446 now
+  filter(!(curve_ID %in% irregular_list)) #447 now
 
 #make some space
 rm(model_preds)
@@ -68,7 +67,7 @@ valid_models <- model_preds_with_bounds %>%
   select(-valid) %>%
   filter(model != "ratkowsky") #consistently poor fit/weird shape
 
-length(unique(valid_models$curve_ID)) #446 
+length(unique(valid_models$curve_ID)) #447
 
 #### 03 filter out models that predict tmin or tmax to be more than 5 degrees on the x away from the min temp tested and max temp tested
 
@@ -102,7 +101,7 @@ valid_models <- valid_models %>%
   filter(n_models == 1 |!any_five_ok |five_flag) %>%
   ungroup()
 
-length(unique(valid_models$curve_ID)) # #446
+length(unique(valid_models$curve_ID)) # #447
 
 valid_preds <- model_preds_1 %>%
   semi_join(valid_models, by = c("curve_ID", "model"))
@@ -274,12 +273,14 @@ params_with_curve_info <- best_param %>%
   left_join(curves %>% select(curve_ID, study_ID, habitat_water, habitat, abs_latitude, latitude, longitude, response_unit, given_trait_name, Trait.Group, Trait.motivation, land_or_sea, treatment_1_group), join_by(curve_ID)) %>%
   distinct()
 
-#could do this with dataset type
+#could do this with dataset type - need to fix this im getting rid of data by replacing it with ctmin ?
+
 params_with_curve_info <- params_with_curve_info %>%
   mutate(topt = ifelse(topt_TF == FALSE, NA, topt)) %>%
   mutate(ctmin = ifelse(thermal_min_TF == FALSE, NA, ctmin)) %>%
   mutate(ctmax = ifelse(thermal_max_TF == FALSE, NA, ctmax)) %>%
   mutate(thermal_tolerance = ifelse(thermal_tolerance_TF == FALSE, NA, thermal_tolerance)) %>%
+  mutate(thermal_tolerance = ifelse(thermal_tolerance_TF == TRUE & (min_five_ok == FALSE | max_five_ok == FALSE), NA, thermal_tolerance)) %>%
   mutate(breadth = ifelse(breadth_TF == FALSE, NA, breadth)) %>%
   mutate(y_value_topt = ifelse(topt_TF == FALSE, NA, y_value_topt)) %>%
   mutate(y_value_ctmin = ifelse(thermal_min_TF == FALSE, NA, y_value_ctmin)) %>%
