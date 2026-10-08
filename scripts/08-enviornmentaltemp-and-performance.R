@@ -12,32 +12,36 @@
   rm(list = ls())
 
   #### 01. load required data ####
-  fitted_datasets <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng.RDS'))
-  fitted_datasets <- fitted_datasets %>%
-    mutate(land_or_sea = ifelse(land_or_sea == "terrestrial", "freshwater", "marine"))
+  params <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng_10_6.RDS'))
   curves <- read.csv(here('processed-data', 'FishTherm.csv'))
-  ##point data
-  freshwater_points <- readRDS(here("processed-data", "my_points_freshwater_summary.RDS"))
-  marine_points <- readRDS(here("processed-data", "my_points_sst_summary.RDS")) %>%
+  params <- params %>%
+    mutate(environment = ifelse(land_or_sea == "terrestrial", "freshwater", "marine")) %>%
+    select(-(land_or_sea))
+  params <- params %>%
+    left_join(curves %>% select(species_ID, curve_ID, organization), join_by(curve_ID)) %>%
+    distinct() 
+  params <- params %>%
+    mutate(Trait.Group = factor(Trait.Group, levels = c("Metabolism", "Energy Aquisition", "Somatic Growth", "Locomotion", "Reproduction", "Survival"))) %>%
+    mutate(Trait.motivation = factor(Trait.motivation, levels = c("negative", "voluntary", "autonomic", "positive"))) %>%
+    mutate(organization = factor(organization, levels = c("internal", "individual", "interaction", "population"))) %>%
+    mutate(environment = factor(environment, levels = c("marine", "freshwater"))) %>%
+    mutate(study_ID = as.factor(study_ID))
+
+  # load temperature data in #
+  freshwater_points <- read.csv(here("processed-data", "new_my_points_freshwater_summary.csv"))
+  marine_points <- read.csv(here("processed-data", "new_my_points_sst_summary.csv")) %>%
     rename(q_low = q2.5) %>%
     rename(q_high = q97.5)
+  freshwater_points <- freshwater_points %>%
+    mutate(environment = "freshwater") 
+  marine_points <- marine_points %>%
+    mutate(environment = "marine")
+  point_data_all <- rbind(freshwater_points, marine_points) %>%
+    select(latitude, longitude, everything())
   
-  
-  
-  #### 02. combine all temperature data ####
+  fits_with_temps <- params %>%
+    left_join(point_data_all, join_by(latitude, longitude, environment))
 
-freshwater_points <- freshwater_points %>%
-    mutate(enviornment = "Freshwater") 
-  
-marine_points <- marine_points %>%
-    mutate(enviornment = "Marine")
-  
-point_data_all <- rbind(freshwater_points, marine_points) %>%
-  select(latitude, longitude, everything())
-
-fits_with_temps <- fitted_datasets %>%
-  left_join(point_data_all, join_by(latitude, longitude)) %>%
-  select(-(land_or_sea))
   
 
 ####03. Averaging paramaters by 'group'//accounting for pseudorep. ####
@@ -50,27 +54,28 @@ collapsed_params <- fits_with_temps %>%
     averaged_pbreadth = if (any(breadth_TF)) mean(breadth[breadth_TF], na.rm = TRUE) else NA_real_,
     averaged_tbreadth = if (any(thermal_tolerance_TF)) mean(thermal_tolerance[thermal_tolerance_TF], na.rm = TRUE) else NA_real_,
     averaged_e = if (any(!is.na(e_arr))) mean(e_arr, na.rm = TRUE) else NA_real_)  %>%
-    ungroup()
+    ungroup() %>%
+    mutate(environment = as.factor(environment))
 
-length(unique(collapsed_params$averaged_topt)) #132
+length(unique(collapsed_params$averaged_topt)) #139
 
 collapsed_params_unique <- collapsed_params %>%
-  select(study_ID, Trait.Group, species_ID, averaged_e, averaged_topt, averaged_pbreadth, averaged_tbreadth, abs_latitude, latitude, mean, sd, enviornment, q_high) %>%
+  select(study_ID, Trait.Group, species_ID, averaged_e, averaged_topt, averaged_pbreadth, averaged_tbreadth, abs_latitude, latitude, mean, sd, environment, q_high) %>%
   distinct()
 
 
 ####04. linear model with Topt and Latitude ####
 ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)),
-       aes(x = abs_latitude, y = averaged_topt, color = enviornment)) +
+       aes(x = abs_latitude, y = averaged_topt, color = environment)) +
   geom_point(alpha = 0.7) +
   scale_color_manual(
     name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
   ) +
   theme_classic()
 
 
-lat_avtopt_model <- lmer(averaged_topt ~ abs_latitude * enviornment + (1 | study_ID), 
+lat_avtopt_model <- lmer(averaged_topt ~ abs_latitude * environment + (1 | study_ID), 
                          data = collapsed_params_unique %>% filter(!is.na(averaged_topt)))
 
 summary(lat_avtopt_model)
@@ -79,21 +84,21 @@ summary(lat_avtopt_model)
 ## want to make sure only predicting on range of data
 lat_range <- collapsed_params_unique %>%
   filter(!is.na(averaged_topt)) %>%
-  group_by(enviornment) %>%
+  group_by(environment) %>%
   summarise(
     min_abs_lat = min(abs_latitude),
     max_abs_lat = max(abs_latitude))
 lat_range
 fresh_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_lat[lat_range$enviornment=="Freshwater"],
-                     lat_range$max_abs_lat[lat_range$enviornment=="Freshwater"],
+  abs_latitude = seq(lat_range$min_abs_lat[lat_range$environment=="freshwater"],
+                     lat_range$max_abs_lat[lat_range$environment=="freshwater"],
                      length.out = 200),
-  enviornment = "Freshwater")
+  environment = "freshwater")
 marine_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_lat[lat_range$enviornment=="Marine"],
-                     lat_range$max_abs_lat[lat_range$enviornment=="Marine"],
+  abs_latitude = seq(lat_range$min_abs_lat[lat_range$environment=="marine"],
+                     lat_range$max_abs_lat[lat_range$environment=="marine"],
                      length.out = 200),
-  enviornment = "Marine")
+  environment = "marine")
 
 pred_grid <- bind_rows(fresh_grid, marine_grid)
 pred_grid$pred <- predict(lat_avtopt_model, newdata = pred_grid, re.form = NA)
@@ -104,39 +109,444 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 
 avtopt_latitude <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
-  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)), aes(x = abs_latitude, y = averaged_topt, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
+  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)), aes(x = abs_latitude, y = averaged_topt, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
   labs(x = "Absolute Latitude", y = "Thermal Optima") +
   scale_color_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   scale_fill_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015,0.015))) +
-  theme_classic(base_size = 16)
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none")
 avtopt_latitude
 
 ggsave("topt_latitude_lme.pdf", plot = avtopt_latitude, path = here("figures"), width = 6, height = 4)
 
 
+#### 05 GAM of topt and latitude, figure 3 inset a ####
 
-#### 05. linear model of performance breadth with latitude ####
-ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)),
-       aes(x = abs_latitude, y = averaged_pbreadth, color = enviornment)) +
+install.packages("mgcv")
+library(mgcv)
+data <- collapsed_params_unique %>%
+  filter(!is.na(averaged_topt))
+lat_avtopt_gam <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = data, method = "REML")
+
+summary(lat_avtopt_model)
+summary(lat_avtopt_gam)
+plot(lat_avtopt_gam, pages = 2)
+
+AIC(lat_avtopt_model, lat_avtopt_gam)
+
+lat_range <- data %>%
+  group_by(environment) %>%
+  summarise(
+    min_abs_lat = min(abs_latitude),
+    max_abs_lat = max(abs_latitude))
+lat_range
+fresh_grid <- data.frame(
+  abs_latitude = seq(
+    lat_range$min_abs_lat[lat_range$environment == "freshwater"],
+    lat_range$max_abs_lat[lat_range$environment == "freshwater"],
+    length.out = 200),
+  environment = "freshwater",
+  study_ID = NA)
+
+marine_grid <- data.frame(
+  abs_latitude = seq(
+    lat_range$min_abs_lat[lat_range$environment == "marine"],
+    lat_range$max_abs_lat[lat_range$environment == "marine"],
+    length.out = 200),
+  environment = "marine",
+  study_ID = NA)
+
+pred_grid <- bind_rows(fresh_grid, marine_grid)
+pred_grid$study_ID <- factor(data$study_ID[1], levels = levels(data$study_ID))
+
+pred_grid$pred <- predict(lat_avtopt_gam, newdata = pred_grid, exclude = "s(study_ID)")
+pred_grid$se   <- predict(lat_avtopt_gam, newdata = pred_grid, exclude = "s(study_ID)", se.fit = TRUE)$se.fit
+
+pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
+pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
+
+# plot # 
+gam_topt_lat <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
+  geom_point(data = data, aes(x = abs_latitude, y = averaged_topt, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  labs(x = "Absolute Latitude", y = "Thermal Optima") +
+  scale_color_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_fill_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
+  scale_y_continuous(expand = expansion(mult = c(0.015,0.015))) +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none")
+
+gam_topt_lat
+
+ggsave("topt_latitude_gam.pdf", plot = gam_topt_lat, path = here("figures"), width = 4, height = 4)
+
+#### 06. thermal optima and environmental temperature, figure 3 inset b ####
+
+## avg topts and meanenv. temp ##
+ggplot(data = collapsed_params_unique %>%
+         filter(!is.na(averaged_topt)),
+       aes(x = mean, y = averaged_topt, color = environment)) +
   geom_point(alpha = 0.7) +
   scale_color_manual(
     name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
   ) +
   theme_classic()
 
 
-lat_avpbreadth_model <- lmer(averaged_pbreadth ~ abs_latitude * enviornment + (1 | study_ID), 
+mean_avtopt_model <- lmer(averaged_topt ~ mean * environment + (1 | study_ID), 
+                          data = collapsed_params_unique %>%
+                            filter(!is.na(averaged_topt)))
+
+summary(mean_avtopt_model)
+
+## want to make sure only predicting on range of data
+temp_range <- collapsed_params_unique %>%
+  filter(!is.na(averaged_topt)) %>%
+  group_by(environment) %>%
+  summarise(
+    min_mean_temp = min(mean),
+    max_max_temp = max(mean))
+temp_range
+fresh_grid <- data.frame(
+  mean = seq(temp_range$min_mean_temp[temp_range$environment=="freshwater"],
+             temp_range$max_max_temp[temp_range$environment=="freshwater"],
+             length.out = 200),
+  environment = "freshwater")
+marine_grid <- data.frame(
+  mean = seq(temp_range$min_mean_temp[temp_range$environment=="marine"],
+             temp_range$max_max_temp[temp_range$environment=="marine"],
+             length.out = 200),
+  environment = "marine")
+
+pred_grid <- bind_rows(fresh_grid, marine_grid)
+pred_grid$pred <- predict(mean_avtopt_model, newdata = pred_grid, re.form = NA)
+pred_grid$se   <- predict(mean_avtopt_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
+
+pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
+pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
+
+
+topt_mean_avtemp <- ggplot(data = pred_grid, aes(x = mean)) +
+  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)), aes(x = mean, y = averaged_topt, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  labs(x = "Mean Habitat Temperature", y = "Thermal Optima") +
+  scale_color_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_fill_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
+  scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none")
+
+topt_mean_avtemp
+ggsave("topt_meantemp_lme_fig3insetb.pdf", plot = topt_mean_avtemp, path = here("figures"), width = 4, height = 4)
+
+#### 07 performance breadth and variability, figure 3 inset c ####
+ggplot(data = collapsed_params_unique %>%
+         filter(!is.na(averaged_pbreadth)),
+       aes(x = sd, y = averaged_pbreadth, color = environment)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(
+    name = "Environment",
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
+  ) +
+  theme_classic()
+
+
+sd_pbreadth_model <- lmer(averaged_pbreadth ~ sd * environment + (1 | study_ID), 
+                          data = collapsed_params_unique %>%
+                            filter(!is.na(averaged_pbreadth)))
+
+summary(sd_pbreadth_model)
+
+## want to make sure only predicting on range of data
+temp_range <- collapsed_params_unique %>%
+  filter(!is.na(averaged_pbreadth)) %>%
+  group_by(environment) %>%
+  summarise(
+    min_mean_temp = min(sd),
+    max_max_temp = max(sd))
+temp_range
+fresh_grid <- data.frame(
+  sd = seq(temp_range$min_mean_temp[temp_range$environment=="freshwater"],
+           temp_range$max_max_temp[temp_range$environment=="freshwater"],
+           length.out = 200),
+  environment = "freshwater")
+marine_grid <- data.frame(
+  sd = seq(temp_range$min_mean_temp[temp_range$environment=="marine"],
+           temp_range$max_max_temp[temp_range$environment=="marine"],
+           length.out = 200),
+  environment = "marine")
+
+pred_grid <- bind_rows(fresh_grid, marine_grid) 
+pred_grid$pred <- predict(sd_pbreadth_model, newdata = pred_grid, re.form = NA)
+pred_grid$se   <- predict(sd_pbreadth_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
+
+pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
+pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
+
+
+sd_pbreadth <- ggplot(data = pred_grid, aes(x = sd)) +
+  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)), aes(x = sd, y = averaged_pbreadth, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  labs(x = "Habitat Temp. Variation (SD)", y = "Performance Breadth") +
+  scale_color_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_fill_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
+  scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none")
+
+sd_pbreadth
+ggsave("performance_breadth_sd_lme.pdf", plot = sd_pbreadth, path = here("figures"), width = 4, height = 4)
+
+#### 08 tolerance breadth and variability, figure 3 inset f ####
+ggplot(data = collapsed_params_unique %>%
+         filter(!is.na(averaged_tbreadth)),
+       aes(x = sd, y = averaged_tbreadth, color = environment)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(
+    name = "Environment",
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
+  ) +
+  theme_classic()
+
+
+sd_tbreadth_model <- lmer(averaged_tbreadth ~ sd * environment + (1 | study_ID), 
+                          data = collapsed_params_unique %>%
+                            filter(!is.na(averaged_tbreadth)))
+
+summary(sd_tbreadth_model)
+
+## want to make sure only predicting on range of data
+temp_range <- collapsed_params_unique %>%
+  filter(!is.na(averaged_tbreadth)) %>%
+  group_by(environment) %>%
+  summarise(
+    min_mean_temp = min(sd),
+    max_max_temp = max(sd))
+temp_range
+fresh_grid <- data.frame(
+  sd = seq(temp_range$min_mean_temp[temp_range$environment=="freshwater"],
+           temp_range$max_max_temp[temp_range$environment=="freshwater"],
+           length.out = 200),
+  environment = "freshwater")
+marine_grid <- data.frame(
+  sd = seq(temp_range$min_mean_temp[temp_range$environment=="marine"],
+           temp_range$max_max_temp[temp_range$environment=="marine"],
+           length.out = 200),
+  environment = "marine")
+
+pred_grid <- bind_rows(fresh_grid, marine_grid) 
+pred_grid$pred <- predict(sd_tbreadth_model, newdata = pred_grid, re.form = NA)
+pred_grid$se   <- predict(sd_tbreadth_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
+
+pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
+pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
+
+
+sd_tbreadth <- ggplot(data = pred_grid, aes(x = sd)) +
+  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)), aes(x = sd, y = averaged_tbreadth, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  labs(x = "Habitat Temp. Variation (SD)", y = "Thermal Tolerance Breadth") +
+  scale_color_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_fill_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
+  scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none")
+
+sd_tbreadth
+ggsave("tolerance_breadth_sd_lme.pdf", plot = sd_tbreadth, path = here("figures"), width = 4, height = 4)
+
+#### 09 TSM and latitude, figure 3 inset d ####
+TSM <- collapsed_params_unique %>%
+  filter(!is.na(averaged_topt)) %>%
+  mutate(TSM = averaged_topt - mean)
+
+## abs latitude and TSM
+ggplot(data = TSM,
+       aes(x = abs_latitude, y = TSM, color = environment)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(
+    name = "Environment",
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
+  ) +
+  theme_classic()
+
+
+lat_TSM_model <- lmer(TSM ~ abs_latitude * environment + (1 | study_ID), 
+                      data = TSM)
+
+summary(lat_TSM_model)
+
+## want to make sure only predicting on range of data
+lat_range <- TSM %>%
+  group_by(environment) %>%
+  summarise(
+    min_lat = min(abs_latitude),
+    max_lat = max(abs_latitude))
+lat_range
+fresh_grid <- data.frame(
+  abs_latitude = seq(lat_range$min_lat[lat_range$environment=="freshwater"],
+                     lat_range$max_lat[lat_range$environment=="freshwater"],
+                     length.out = 200),
+  environment = "freshwater")
+marine_grid <- data.frame(
+  abs_latitude = seq(lat_range$min_lat[lat_range$environment=="marine"],
+                     lat_range$max_lat[lat_range$environment=="marine"],
+                     length.out = 200),
+  environment = "marine")
+
+pred_grid <- bind_rows(fresh_grid, marine_grid)
+pred_grid$pred <- predict(lat_TSM_model, newdata = pred_grid, re.form = NA)
+pred_grid$se   <- predict(lat_TSM_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
+
+pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
+pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
+
+
+TSM_lat <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
+  geom_point(data = TSM, aes(x = abs_latitude, y = TSM, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  labs(x = "Absolute Latitude", y = "Thermal Safety Margin") +
+  scale_color_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_fill_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
+  scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none")
+
+TSM_lat
+
+ggsave("TSM_abslat_lme.pdf", plot = TSM_lat, path = here("figures"), width = 4, height = 4)
+
+#### 10. TSM and environmental variability, figure 3 inset e ####
+
+## sd and TSM
+ggplot(data = TSM,
+       aes(x = sd, y = TSM, color = environment)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(
+    name = "Environment",
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
+  ) +
+  theme_classic()
+
+
+SD_TSM_model <- lmer(TSM ~ sd * environment + (1 | study_ID), 
+                     data = TSM)
+
+summary(SD_TSM_model)
+
+## want to make sure only predicting on range of data
+sd_range <- TSM %>%
+  group_by(environment) %>%
+  summarise(
+    min_sd = min(sd),
+    max_sd = max(sd))
+sd_range
+fresh_grid <- data.frame(
+  sd = seq(sd_range$min_sd[sd_range$environment=="freshwater"],
+           sd_range$max_sd[sd_range$environment=="freshwater"],
+           length.out = 200),
+  environment = "freshwater")
+marine_grid <- data.frame(
+  sd = seq(sd_range$min_sd[sd_range$environment=="marine"],
+           sd_range$max_sd[sd_range$environment=="marine"],
+           length.out = 200),
+  environment = "marine")
+
+pred_grid <- bind_rows(fresh_grid, marine_grid)
+pred_grid$pred <- predict(SD_TSM_model, newdata = pred_grid, re.form = NA)
+pred_grid$se   <- predict(SD_TSM_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
+
+pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
+pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
+
+
+TSM_SD <- ggplot(data = pred_grid, aes(x = sd)) +
+  geom_point(data = TSM, aes(x = sd, y = TSM, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  labs(x = "Habitat Temp. Variation (SD)", y = "Thermal Safety Margin") +
+  scale_color_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_fill_manual(
+    name = "Realm",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
+  ) +
+  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
+  scale_y_continuous(expand = expansion(mult = c(0.016, 0.016))) +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none")
+TSM_SD
+ggsave("TSM_sd_lme.pdf", plot = TSM_SD, path = here("figures"), width = 4, height = 4)
+
+
+
+
+
+#### 11 Linear model of performance breadth with latitude ####
+ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)),
+       aes(x = abs_latitude, y = averaged_pbreadth, color = environment)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(
+    name = "Environment",
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
+  ) +
+  theme_classic()
+
+
+lat_avpbreadth_model <- lmer(averaged_pbreadth ~ abs_latitude * environment + (1 | study_ID), 
                          data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)))
 
 summary(lat_avpbreadth_model)
@@ -146,21 +556,21 @@ summary(lat_avpbreadth_model)
 ## want to make sure only predicting on range of data
 lat_range <- collapsed_params_unique %>%
   filter(!is.na(averaged_pbreadth)) %>%
-  group_by(enviornment) %>%
+  group_by(environment) %>%
   summarise(
     min_abs_lat = min(abs_latitude),
     max_abs_lat = max(abs_latitude))
 lat_range
 fresh_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_lat[lat_range$enviornment=="Freshwater"],
-                     lat_range$max_abs_lat[lat_range$enviornment=="Freshwater"],
+  abs_latitude = seq(lat_range$min_abs_lat[lat_range$environment=="freshwater"],
+                     lat_range$max_abs_lat[lat_range$environment=="freshwater"],
                      length.out = 200),
-  enviornment = "Freshwater")
+  environment = "freshwater")
 marine_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_lat[lat_range$enviornment=="Marine"],
-                     lat_range$max_abs_lat[lat_range$enviornment=="Marine"],
+  abs_latitude = seq(lat_range$min_abs_lat[lat_range$environment=="marine"],
+                     lat_range$max_abs_lat[lat_range$environment=="marine"],
                      length.out = 200),
-  enviornment = "Marine")
+  environment = "marine")
 
 pred_grid <- bind_rows(fresh_grid, marine_grid)
 pred_grid$pred <- predict(lat_avpbreadth_model, newdata = pred_grid, re.form = NA)
@@ -171,96 +581,24 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 
 avpbreadth_latitude <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
-  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)), aes(x = abs_latitude, y = averaged_pbreadth, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
+  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)), aes(x = abs_latitude, y = averaged_pbreadth, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
   labs(x = "Absolute Latitude", y = "Performance Breadth") +
   scale_color_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   scale_fill_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
   theme_classic(base_size = 16)
 avpbreadth_latitude
 
-
-#### 06. linear model of tolerance breadth with latitude ####
-ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)),
-       aes(x = abs_latitude, y = averaged_tbreadth, color = enviornment)) +
-  geom_point(alpha = 0.7) +
-  scale_color_manual(
-    name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
-  ) +
-  theme_classic()
-
-
-lat_avtbreadth_model <- lmer(averaged_tbreadth ~ abs_latitude * enviornment + (1 | study_ID), 
-                             data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)))
-
-summary(lat_avtbreadth_model)
-# not signif
-
-#plot fitted model 
-## want to make sure only predicting on range of data
-lat_range <- collapsed_params_unique %>%
-  filter(!is.na(averaged_tbreadth)) %>%
-  group_by(enviornment) %>%
-  summarise(
-    min_abs_lat = min(abs_latitude),
-    max_abs_lat = max(abs_latitude))
-lat_range
-fresh_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_lat[lat_range$enviornment=="Freshwater"],
-                     lat_range$max_abs_lat[lat_range$enviornment=="Freshwater"],
-                     length.out = 200),
-  enviornment = "Freshwater")
-marine_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_lat[lat_range$enviornment=="Marine"],
-                     lat_range$max_abs_lat[lat_range$enviornment=="Marine"],
-                     length.out = 200),
-  enviornment = "Marine")
-
-pred_grid <- bind_rows(fresh_grid, marine_grid)
-pred_grid$pred <- predict(lat_avtbreadth_model, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(lat_avtbreadth_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
-
-pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
-pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
-
-
-avtbreadth_latitude <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
-  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)), aes(x = abs_latitude, y = averaged_tbreadth, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
-  labs(x = "Absolute Latitude", y = "Tolerance Breadth") +
-  scale_color_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  scale_fill_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  theme_classic(base_size = 16) +
-  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
-  scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
-  theme(legend.position = "none")
-avtbreadth_latitude
-
-library(patchwork)
-
-breadths_and_lat <- avpbreadth_latitude + avtbreadth_latitude
-
-ggsave("breadths_and_lat_lme.pdf", plot = breadths_and_lat, path = here("figures"), width = 8, height = 4)
-
-
-#### 07. linear model with performance breadth and tolerance breadth
+#### linear model with performance breadth and tolerance breadth
 
 ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)),
        aes(x = averaged_pbreadth, y = averaged_tbreadth, fill = "darkgrey")) +
@@ -287,8 +625,8 @@ pbreadth_range <- collapsed_params_unique %>%
 pbreadth_range
 pred_grid <- data.frame(
   averaged_pbreadth = seq(pbreadth_range$min_pbreadth,
-                pbreadth_range$max_pbreadth,
-                length.out = 200))
+                          pbreadth_range$max_pbreadth,
+                          length.out = 200))
 
 pred_grid$pred <- predict(tolerance_and_breadth_model, newdata = pred_grid, re.form = NA)
 pred_grid$se   <- predict(tolerance_and_breadth_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
@@ -314,89 +652,103 @@ tolerance_and_breadth_graph
 
 ggsave("tolerance_breadth_with_performance_breadth.png", plot = tolerance_and_breadth_graph, path = here("figures"), width = 4, height = 4.2)
 
+#### 12 model summaries ####
+install.packages("sjPlot")
+library(sjPlot)
+library(webshot)
 
-#### 08. thermal optima and environmental temperature ####
+###models that are in main-text paper ###
+tab_model(lat_avtopt_gam, mean_avtopt_model, sd_pbreadth_model, lat_TSM_model, SD_TSM_model, sd_tbreadth_model, show.stat = TRUE, show.se = TRUE, file = "figure3_model_sum_update.html")
 
-## avg topts and meanenv. temp ##
-ggplot(data = collapsed_params_unique %>%
-         filter(!is.na(averaged_topt)),
-       aes(x = mean, y = averaged_topt, color = enviornment)) +
+webshot("figure3_model_sum_update.html", "figure3_model_sum_update.pdf")
+
+
+
+#### linear model of tolerance breadth with latitude ####
+ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)),
+       aes(x = abs_latitude, y = averaged_tbreadth, color = environment)) +
   geom_point(alpha = 0.7) +
   scale_color_manual(
     name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
   ) +
   theme_classic()
 
 
-mean_avtopt_model <- lmer(averaged_topt ~ mean * enviornment + (1 | study_ID), 
-                          data = collapsed_params_unique %>%
-                            filter(!is.na(averaged_topt)))
+lat_avtbreadth_model <- lmer(averaged_tbreadth ~ abs_latitude * environment + (1 | study_ID), 
+                             data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)))
 
-summary(mean_avtopt_model)
+summary(lat_avtbreadth_model)
+# not signif
 
+#plot fitted model 
 ## want to make sure only predicting on range of data
-temp_range <- collapsed_params_unique %>%
-  filter(!is.na(averaged_topt)) %>%
-  group_by(enviornment) %>%
+lat_range <- collapsed_params_unique %>%
+  filter(!is.na(averaged_tbreadth)) %>%
+  group_by(environment) %>%
   summarise(
-    min_mean_temp = min(mean),
-    max_max_temp = max(mean))
-temp_range
+    min_abs_lat = min(abs_latitude),
+    max_abs_lat = max(abs_latitude))
+lat_range
 fresh_grid <- data.frame(
-  mean = seq(temp_range$min_mean_temp[temp_range$enviornment=="Freshwater"],
-             temp_range$max_max_temp[temp_range$enviornment=="Freshwater"],
-             length.out = 200),
-  enviornment = "Freshwater")
+  abs_latitude = seq(lat_range$min_abs_lat[lat_range$environment=="freshwater"],
+                     lat_range$max_abs_lat[lat_range$environment=="freshwater"],
+                     length.out = 200),
+  environment = "freshwater")
 marine_grid <- data.frame(
-  mean = seq(temp_range$min_mean_temp[temp_range$enviornment=="Marine"],
-             temp_range$max_max_temp[temp_range$enviornment=="Marine"],
-             length.out = 200),
-  enviornment = "Marine")
+  abs_latitude = seq(lat_range$min_abs_lat[lat_range$environment=="marine"],
+                     lat_range$max_abs_lat[lat_range$environment=="marine"],
+                     length.out = 200),
+  environment = "marine")
 
 pred_grid <- bind_rows(fresh_grid, marine_grid)
-pred_grid$pred <- predict(mean_avtopt_model, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(mean_avtopt_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
+pred_grid$pred <- predict(lat_avtbreadth_model, newdata = pred_grid, re.form = NA)
+pred_grid$se   <- predict(lat_avtbreadth_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
 
 pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
 pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 
-topt_mean_avtemp <- ggplot(data = pred_grid, aes(x = mean)) +
-  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)), aes(x = mean, y = averaged_topt, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
-  labs(x = "Mean Habitat Temperature", y = "Thermal Optima") +
+avtbreadth_latitude <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
+  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)), aes(x = abs_latitude, y = averaged_tbreadth, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  labs(x = "Absolute Latitude", y = "Tolerance Breadth") +
   scale_color_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   scale_fill_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
+  theme_classic(base_size = 16) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
-  theme_classic(base_size = 16) +
   theme(legend.position = "none")
+avtbreadth_latitude
 
-topt_mean_avtemp
-ggsave("topt_meantemp_lme.pdf", plot = topt_mean_avtemp, path = here("figures"), width = 4, height = 4)
+library(patchwork)
+
+breadths_and_lat <- avpbreadth_latitude + avtbreadth_latitude
+breadths_and_lat
+ggsave("breadths_and_lat_lme.pdf", plot = breadths_and_lat, path = here("figures"), width = 8, height = 4)
 
 
-### topt with extreme temperature ##
+
+#### linear model with topt with extreme temperature ####
 ggplot(data = collapsed_params_unique %>%
          filter(!is.na(averaged_topt)),
-       aes(x = q_high, y = averaged_topt, color = enviornment)) +
+       aes(x = q_high, y = averaged_topt, color = environment)) +
   geom_point(alpha = 0.7) +
   scale_color_manual(
     name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
   ) +
   theme_classic()
 
 
-extreme_avtopt_model <- lmer(averaged_topt ~ q_high * enviornment + (1 | study_ID), 
+extreme_avtopt_model <- lmer(averaged_topt ~ q_high * environment + (1 | study_ID), 
                           data = collapsed_params_unique %>%
                             filter(!is.na(averaged_topt)))
 
@@ -405,21 +757,21 @@ summary(extreme_avtopt_model)
 ## want to make sure only predicting on range of data
 temp_range <- collapsed_params_unique %>%
   filter(!is.na(averaged_topt)) %>%
-  group_by(enviornment) %>%
+  group_by(environment) %>%
   summarise(
     min_mean_temp = min(q_high),
     max_max_temp = max(q_high))
 temp_range
 fresh_grid <- data.frame(
-  q_high = seq(temp_range$min_mean_temp[temp_range$enviornment=="Freshwater"],
-             temp_range$max_max_temp[temp_range$enviornment=="Freshwater"],
+  q_high = seq(temp_range$min_mean_temp[temp_range$environment=="freshwater"],
+             temp_range$max_max_temp[temp_range$environment=="freshwater"],
              length.out = 200),
-  enviornment = "Freshwater")
+  environment = "freshwater")
 marine_grid <- data.frame(
-  q_high = seq(temp_range$min_mean_temp[temp_range$enviornment=="Marine"],
-             temp_range$max_max_temp[temp_range$enviornment=="Marine"],
+  q_high = seq(temp_range$min_mean_temp[temp_range$environment=="marine"],
+             temp_range$max_max_temp[temp_range$environment=="marine"],
              length.out = 200),
-  enviornment = "Marine")
+  environment = "marine")
 
 pred_grid <- bind_rows(fresh_grid, marine_grid)
 pred_grid$pred <- predict(extreme_avtopt_model, newdata = pred_grid, re.form = NA)
@@ -430,17 +782,17 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 
 topt_extreme_temp <- ggplot(data = pred_grid, aes(x = q_high)) +
-  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)), aes(x = q_high, y = averaged_topt, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
+  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)), aes(x = q_high, y = averaged_topt, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
   labs(x = "Upper Habitat Temperature", y = "Thermal Optima") +
   scale_color_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   scale_fill_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015,0.015))) +
@@ -450,224 +802,11 @@ topt_extreme_temp <- ggplot(data = pred_grid, aes(x = q_high)) +
 topt_extreme_temp
 ggsave("topt_extremetemp_lme.png", plot = topt_extreme_temp, path = here("figures"), width = 5, height = 4)
 
-#### 09. performance breadth and variability ####
-ggplot(data = collapsed_params_unique %>%
-         filter(!is.na(averaged_pbreadth)),
-       aes(x = sd, y = averaged_pbreadth, color = enviornment)) +
-  geom_point(alpha = 0.7) +
-  scale_color_manual(
-    name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
-  ) +
-  theme_classic()
 
 
-sd_pbreadth_model <- lmer(averaged_pbreadth ~ sd * enviornment + (1 | study_ID), 
-                             data = collapsed_params_unique %>%
-                               filter(!is.na(averaged_pbreadth)))
-
-summary(sd_pbreadth_model)
-
-## want to make sure only predicting on range of data
-temp_range <- collapsed_params_unique %>%
-  filter(!is.na(averaged_pbreadth)) %>%
-  group_by(enviornment) %>%
-  summarise(
-    min_mean_temp = min(sd),
-    max_max_temp = max(sd))
-temp_range
-fresh_grid <- data.frame(
-  sd = seq(temp_range$min_mean_temp[temp_range$enviornment=="Freshwater"],
-               temp_range$max_max_temp[temp_range$enviornment=="Freshwater"],
-               length.out = 200),
-  enviornment = "Freshwater")
-marine_grid <- data.frame(
-  sd = seq(temp_range$min_mean_temp[temp_range$enviornment=="Marine"],
-               temp_range$max_max_temp[temp_range$enviornment=="Marine"],
-               length.out = 200),
-  enviornment = "Marine")
-
-pred_grid <- bind_rows(fresh_grid, marine_grid)
-pred_grid$pred <- predict(sd_pbreadth_model, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(sd_pbreadth_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
-
-pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
-pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 
-sd_pbreadth <- ggplot(data = pred_grid, aes(x = sd)) +
-  geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)), aes(x = sd, y = averaged_pbreadth, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
-  labs(x = "Habitat Temp. Variation (SD)", y = "Performance Breadth") +
-  scale_color_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  scale_fill_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
-  scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
-  theme_classic(base_size = 16) +
-  theme(legend.position = "none")
 
-sd_pbreadth
-ggsave("breadth_sd_lme.pdf", plot = sd_pbreadth, path = here("figures"), width = 4, height = 4)
-
-
-#### 10. thermal safety margin ####
-#want to look at sd and at latitude
-
-TSM <- collapsed_params_unique %>%
-  filter(!is.na(averaged_topt)) %>%
-  mutate(TSM = averaged_topt - mean)
-
-## abs latitude and TSM
-ggplot(data = TSM,
-       aes(x = abs_latitude, y = TSM, color = enviornment)) +
-  geom_point(alpha = 0.7) +
-  scale_color_manual(
-    name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
-  ) +
-  theme_classic()
-
-
-lat_TSM_model <- lmer(TSM ~ abs_latitude * enviornment + (1 | study_ID), 
-                          data = TSM)
-
-summary(lat_TSM_model)
-
-## want to make sure only predicting on range of data
-lat_range <- TSM %>%
-  group_by(enviornment) %>%
-  summarise(
-    min_lat = min(abs_latitude),
-    max_lat = max(abs_latitude))
-lat_range
-fresh_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_lat[lat_range$enviornment=="Freshwater"],
-                     lat_range$max_lat[lat_range$enviornment=="Freshwater"],
-           length.out = 200),
-  enviornment = "Freshwater")
-marine_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_lat[lat_range$enviornment=="Marine"],
-                     lat_range$max_lat[lat_range$enviornment=="Marine"],
-           length.out = 200),
-  enviornment = "Marine")
-
-pred_grid <- bind_rows(fresh_grid, marine_grid)
-pred_grid$pred <- predict(lat_TSM_model, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(lat_TSM_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
-
-pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
-pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
-
-
-TSM_lat <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
-  geom_point(data = TSM, aes(x = abs_latitude, y = TSM, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
-  labs(x = "Absolute Latitude", y = "Thermal Safety Margin") +
-  scale_color_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  scale_fill_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
-  scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
-  theme_classic(base_size = 16) +
-  theme(legend.position = "none")
-
-TSM_lat
-
-ggsave("TSM_abslat_lme.pdf", plot = TSM_lat, path = here("figures"), width = 4, height = 4)
-
-## TSM and environmental variability ##
-
-## sd and TSM
-ggplot(data = TSM,
-       aes(x = sd, y = TSM, color = enviornment)) +
-  geom_point(alpha = 0.7) +
-  scale_color_manual(
-    name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
-  ) +
-  theme_classic()
-
-
-SD_TSM_model <- lmer(TSM ~ sd * enviornment + (1 | study_ID), 
-                      data = TSM)
-
-summary(SD_TSM_model)
-
-## want to make sure only predicting on range of data
-sd_range <- TSM %>%
-  group_by(enviornment) %>%
-  summarise(
-    min_sd = min(sd),
-    max_sd = max(sd))
-sd_range
-fresh_grid <- data.frame(
-  sd = seq(sd_range$min_sd[sd_range$enviornment=="Freshwater"],
-           sd_range$max_sd[sd_range$enviornment=="Freshwater"],
-                     length.out = 200),
-  enviornment = "Freshwater")
-marine_grid <- data.frame(
-  sd = seq(sd_range$min_sd[sd_range$enviornment=="Marine"],
-           sd_range$max_sd[sd_range$enviornment=="Marine"],
-                     length.out = 200),
-  enviornment = "Marine")
-
-pred_grid <- bind_rows(fresh_grid, marine_grid)
-pred_grid$pred <- predict(SD_TSM_model, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(SD_TSM_model, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
-
-pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
-pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
-
-
-TSM_SD <- ggplot(data = pred_grid, aes(x = sd)) +
-  geom_point(data = TSM, aes(x = sd, y = TSM, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
-  labs(x = "Habitat Temp. Variation (SD)", y = "Thermal Safety Margin") +
-  scale_color_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  scale_fill_manual(
-    name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
-  scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
-  scale_y_continuous(expand = expansion(mult = c(0.016, 0.016))) +
-  theme_classic(base_size = 16) +
-  theme(legend.position = "none")
-TSM_SD
-ggsave("TSM_sd_lme.pdf", plot = TSM_SD, path = here("figures"), width = 4, height = 4)
-
-
-#### 11. model summary ####
-install.packages("sjPlot")
-library(sjPlot)
-library(webshot)
-
-###models that are in main-text paper ###
-tab_model(lat_avtopt_model, mean_avtopt_model, lat_TSM_model, SD_TSM_model, sd_pbreadth_model, show.stat = TRUE, show.se = TRUE, file = "linear_model_sum_update.html")
-
-webshot("linear_model_sum_update.html", "linear_model_sum_update.pdf")
-
-
-tab_model(lat_TSM_model, show.stat = TRUE, show.se = TRUE, file = "latitude_TSM_model.html")
-
-tab_model(extreme_avtopt_model, show.stat = TRUE, show.se = TRUE, file = "extreme_topt_model.html")
-webshot("extreme_topt_model.html", "extreme_topt_model.pdf")
 
 
 
