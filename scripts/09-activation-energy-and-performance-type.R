@@ -19,8 +19,9 @@ library(here)
 library(dplyr)
 library(tidyverse)
 
-curve_params <- readRDS(here("processed-data", "tpcs_with_fitted_params_with_act_eng.RDS"))
-curves       <- read.csv(here("processed-data", "FishTherm.csv"))
+curve_params <- readRDS(here("processed-data", "tpcs_with_fitted_params_with_act_eng_10_6.RDS"))
+
+curves <- read.csv(here("processed-data", "FishTherm.csv"))
 
 # add organization info to fitted params (by curve_ID)
 curve_params <- curve_params %>%
@@ -30,6 +31,7 @@ curve_params <- curve_params %>%
 # keep only rows with activation energy estimates
 act_eng <- curve_params %>%
   filter(!is.na(e_arr))
+
 
 # set factor levels for consistent ordering in plots/models
 
@@ -46,20 +48,20 @@ average_ee_TG <- act_eng %>%
   mutate(averaged_e = mean(e_arr, na.rm = TRUE)) %>%
   ungroup() %>%
   select(study_ID, Trait.Group, species_ID, averaged_e, latitude) %>%
-  distinct()  # ~83
+  distinct()  # ~92 ?
 
 #summary stats
-mean(average_ee_TG$averaged_e) #.71
+mean(average_ee_TG$averaged_e) #.66
 se <- sd(average_ee_TG$averaged_e, na.rm = TRUE) /
-  sqrt(sum(!is.na(average_ee_TG$averaged_e))) #0.05
+  sqrt(sum(!is.na(average_ee_TG$averaged_e))) #0.04
 
-median(average_ee_TG$averaged_e) #.64
+median(average_ee_TG$averaged_e) #.61
 
 #metabolic responses
 average_ee_TG_M <- average_ee_TG %>%
   filter(Trait.Group == "Metabolism")
-median(average_ee_TG_M$averaged_e)  #.564
-mean(average_ee_TG_M$averaged_e) #.563
+median(average_ee_TG_M$averaged_e)  #.54
+mean(average_ee_TG_M$averaged_e) #.54
 se <- sd(average_ee_TG_M$averaged_e, na.rm = TRUE) /
   sqrt(sum(!is.na(average_ee_TG_M$averaged_e))) #0.03
 
@@ -70,9 +72,9 @@ average_ee_TM <- act_eng %>%
   mutate(averaged_e = mean(e_arr, na.rm = TRUE)) %>%
   ungroup() %>%
   select(study_ID, Trait.Group, Trait.motivation, species_ID, averaged_e, latitude) %>%
-  distinct()  # ~94
+  distinct()  # ~104
 
-mean(average_ee_TM$averaged_e) #.69
+mean(average_ee_TM$averaged_e) #.65
 
 ## Organization
 average_ee_TO <- act_eng %>%
@@ -80,7 +82,7 @@ average_ee_TO <- act_eng %>%
   mutate(averaged_e = mean(e_arr, na.rm = TRUE)) %>%
   ungroup() %>%
   select(study_ID, Trait.Group, Trait.motivation, organization, species_ID, averaged_e, latitude) %>%
-  distinct()  # ~94
+  distinct()  # ~104
 
 #### 03. summaries (mean/median/SE/95% CI) for overlay on ridge plots ####
 trait_summary <- average_ee_TG %>%

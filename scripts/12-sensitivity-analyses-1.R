@@ -14,7 +14,7 @@ library(tidyverse)
 rm(list = ls())
 
 #loading data
-params <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng.RDS'))
+params <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng_10_6.RDS'))
 curves <- read.csv(here('processed-data', 'FishTherm.csv'))
 params <- params %>%
   mutate(environment = ifelse(land_or_sea == "terrestrial", "freshwater", "marine")) %>%
@@ -53,7 +53,7 @@ average_topts_TG <- average_topts_TG %>%
   mutate(environment = factor(environment, levels = c("marine", "freshwater")))
 average_topts_TG <- average_topts_TG %>%
   select(study_ID, Trait.Group, species_ID, averaged_topt, abs_latitude, latitude, environment, mean, sd) %>%
-  distinct() #134
+  distinct() #140
 
 
 
@@ -86,7 +86,7 @@ lat_avtopt_gam <- gam(averaged_topt ~ s(abs_latitude, by = environment) + enviro
 
 summary(lat_avtopt_model)
 summary(lat_avtopt_gam)
-plot(lat_avtopt_gam, pages = 1)
+plot(lat_avtopt_gam, pages = 2)
 
 AIC(lat_avtopt_model, lat_avtopt_gam)
 
@@ -106,7 +106,7 @@ average_topts_TM <- fits_with_temps %>%
 average_topts_TM <- average_topts_TM %>%
   mutate(environment = factor(environment, levels = c("marine", "freshwater"))) %>%
   select(study_ID, Trait.Group, Trait.motivation, species_ID, averaged_topt, abs_latitude, latitude, environment, mean, sd) %>%
-  distinct() #147
+  distinct() #156
 
 
 lat_avtopt_TM_gam_model <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = average_topts_TM, method = "REML")
@@ -125,7 +125,7 @@ average_topts_TO <- fits_with_temps %>%
 average_topts_TO <- average_topts_TO %>%
   mutate(environment = factor(environment, levels = c("marine", "freshwater"))) %>%
   select(study_ID, Trait.Group, Trait.motivation, organization, species_ID, averaged_topt, abs_latitude, latitude, environment, mean, sd) %>%
-  distinct() #149
+  distinct() #158
 lat_avtopt_TO_gam_model <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = average_topts_TO, method = "REML")
 
 summary(lat_avtopt_TO_gam_model)
@@ -539,6 +539,21 @@ ggsave("combined_figure_lat_and_temp_residuals.pdf", plot = combined_figure_lat_
 
 #### plot gam for latitude ####
 ## want to make sure only predicting on range of data
+## now i am fitting a GAM to topt and latitude ##
+install.packages("mgcv")
+library(mgcv)
+
+lat_avtopt_gam <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = average_topts_TG, method = "REML")
+
+summary(lat_avtopt_model)
+summary(lat_avtopt_gam)
+plot(lat_avtopt_gam, pages = 2)
+
+AIC(lat_avtopt_model, lat_avtopt_gam)
+
+#### sensitivity//new analysis 2-- residuals from gam ###
+average_topts_TG$gamresid_topt_lat = residuals(lat_avtopt_gam)
+
 lat_range <- average_topts_TG %>%
   group_by(environment) %>%
   summarise(
@@ -564,7 +579,7 @@ marine_grid <- data.frame(
 pred_grid <- bind_rows(fresh_grid, marine_grid)
 pred_grid$study_ID <- factor(average_topts_TG$study_ID[1], levels = levels(average_topts_TG$study_ID))
 
-pred_grid$pred <- predict(lat_avtopt_gam, newdata = pred_grid, exclude = "s(study_ID)")
+pred_grid$pred <- predictInterval(lat_avtopt_gam, newdata = pred_grid, exclude = "s(study_ID)")
 pred_grid$se   <- predict(lat_avtopt_gam, newdata = pred_grid, exclude = "s(study_ID)", se.fit = TRUE)$se.fit
 
 pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
