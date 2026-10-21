@@ -52,75 +52,59 @@ plot_data <- plot_data %>%
 parameter_labels <- n_parameter_total %>%
   mutate(label = paste0(parameter, " (n = ", n_total, ")")) %>%
   {setNames(.$label, .$parameter)}
+parameter_colors <- c(
+  "topt" = "black",
+  "tmin" = "blue",
+  "tmax" = "red",
+  "breadth" = "#CC79A7",
+  "thermal_tolerance" = "#E69F00",
+  "e_arr" = "#6B4E71"
+)
 
-
-ggplot(plot_data, aes(x = dataset_type, y = value, colour = parameter)) +
+a <- ggplot(plot_data, aes(x = dataset_type, y = value, colour = parameter)) +
   geom_point(position = position_jitterdodge(jitter.width = 0.08,
-                                             dodge.width = 0.7), alpha = 0.25, size = 1.5) +
+                                             dodge.width = 0.7), alpha = 0.15, size = 2.5) +
   geom_errorbar(data = parameter_summary, aes(y = mean, ymin = mean - sd, ymax = mean + sd),
     position = position_dodge(width = 0.7), width = 0.12, linewidth = 0.7, show.legend = FALSE) +
-  geom_point(
-    data = parameter_summary,
-    aes(
-      y = mean
-    ),
-    position = position_dodge(width = 0.7),
-    size = 3,
-    show.legend = FALSE
-  ) +
-  
+  geom_point(data = parameter_summary, aes(y = mean), 
+             position = position_dodge(width = 0.7),size = 3, show.legend = FALSE) +
   # n parameter estimates within each dataset type
-  geom_text(
-    data = n_parameter_group %>%
-      left_join(
-        plot_data %>%
-          group_by(dataset_type, parameter) %>%
-          summarise(
-            y = max(value, na.rm = TRUE),
-            .groups = "drop"
-          ),
-        by = c("dataset_type", "parameter")
-      ),
-    aes(
-      x = dataset_type,
-      y = y,
-      colour = parameter,
-      label = paste0("n = ", n_group)
-    ),
-    position = position_dodge(width = 0.7),
-    vjust = -0.8,
-    inherit.aes = FALSE,
-    show.legend = FALSE
-  ) +
-  
+  geom_text(data = n_parameter_group %>%
+      left_join(plot_data %>%
+                  group_by(dataset_type, parameter) %>%
+                  summarise(y = max(value, na.rm = TRUE),
+                            .groups = "drop"), by = c("dataset_type", "parameter")),
+                    aes( x = dataset_type, y = y, colour = parameter,
+                    label = paste0("n = ", n_group)),
+                    position = position_dodge(width = 0.7), 
+                    vjust = -0.8, size = 2, inherit.aes = FALSE, show.legend = FALSE) +
   # n TPCs
-  geom_text(
-    data = n_tpcs,
-    aes(
-      x = dataset_type,
-      y = -Inf,
-      label = paste0("n TPCs = ", n_tpc)
-    ),
-    inherit.aes = FALSE,
-    vjust = -0.5
-  ) +
-  
-  scale_colour_discrete(
-    labels = parameter_labels
-  ) +
-  
-  coord_cartesian(
-    clip = "off"
-  ) +
-  
+  geom_text(data = n_tpcs, aes(x = dataset_type, y = -Inf, label = paste0("n TPCs = ", n_tpc)),
+            inherit.aes = FALSE, vjust = -0.5) +
+  scale_colour_manual(values = parameter_colors, labels = parameter_labels) +
+  coord_cartesian(clip = "off") +
   theme_classic() +
-  
-  theme(
-    plot.margin = margin(10, 10, 35, 10)
-  ) +
-  
+  theme(plot.margin = margin(10, 10, 35, 10),
+        legend.position = "none") +
   labs(
     x = "Dataset type",
     y = "Parameter value",
-    colour = "Parameter"
-  )
+    colour = "Parameter")
+a
+ggsave("dataset_type_and_parameters.pdf", plot = a, path = here("figures"), width = 8, height = 4)
+
+dataset_types <- read.csv(here('processed-data', "fishtherm_curve_coverage_sorted_updated10_5.csv")) %>%
+  select(curve_ID, dataset_type) %>%
+  distinct()
+n <- dataset_types %>%
+  distinct(curve_ID, dataset_type) %>%
+  count(dataset_type, name = "n_tpc")
+#### this should be reported in the text - the sorted data #s before things were filtered out ####
+
+
+n_parameter_total <- plot_data %>%
+  distinct(curve_ID, parameter) %>%
+  count(parameter, name = "n_total")
+n_parameter_group <- plot_data %>%
+  distinct(curve_ID, dataset_type, parameter) %>%
+  count(dataset_type, parameter, name = "n_group")
