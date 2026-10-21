@@ -5,7 +5,7 @@ library(ggplot2)
 rm(list = ls())
 # load data
 predictions <- readRDS(here("processed-data", "top_model_predictions.RDS"))
-params <- readRDS(here("processed-data", "tpcs_with_fitted_params_with_act_eng.RDS"))
+params <- readRDS(here("processed-data", "tpcs_with_fitted_params_with_act_eng_10_6.RDS"))
 curves <- read.csv(here("processed-data", "FishTherm.csv"))
 
 params <- params %>%
@@ -106,15 +106,15 @@ breadth80_list <- unique(breadth80$curve_ID)
                 aes(y = averaged_topt, yend = max_max_test_temp),
                 color = "red", alpha = .35, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are cold edge only (blue)
-                  filter(new_dataset_type == "unbounded_increasing"),
+                  filter(new_dataset_type == "partial_rise"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "blue", alpha = .35, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are warm edge only (red)
-                  filter(new_dataset_type == "unbounded_decreasing"),
+                  filter(new_dataset_type == "partial_decline"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "red", alpha = .35, linewidth = 1) +
    geom_segment(data = new_bike_rank %>%  #floating 'curves' that are not informative (grey)
-                  filter(new_dataset_type %in% c("irregular", "unbounded_increasing, unbounded_decreasing", "unbounded_increasing, unbounded_decreasing, irregular", "unbounded_increasing, irregular", "irregular, unbounded_increasing")),
+                  filter(new_dataset_type %in% c("partial_rise, partial_decline")),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "grey", alpha = .7, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #no opt but bounded by thermal max (bounded decreasing) (red)
@@ -168,15 +168,15 @@ breadth80_list <- unique(breadth80$curve_ID)
                 aes(y = averaged_topt, yend = max_max_test_temp),
                 color = "red", alpha = .35, linewidth = 1.2) +
    geom_segment(data = new_bike_rank_freshwater %>% #floating 'curves' that are cold edge only (blue)
-                  filter(new_dataset_type == "unbounded_increasing"),
+                  filter(new_dataset_type == "partial_rise"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "blue", alpha = .35, linewidth = 1.2) +
    geom_segment(data = new_bike_rank_freshwater %>% #floating 'curves' that are warm edge only (red)
-                  filter(new_dataset_type == "unbounded_decreasing"),
+                  filter(new_dataset_type == "partial_decline"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "red", alpha = .35, linewidth = 1.2) +
    geom_segment(data = new_bike_rank_freshwater %>%  #floating 'curves' that are not informative (grey)
-                  filter(new_dataset_type %in% c("irregular", "unbounded_increasing, unbounded_decreasing, irregular", "unbounded_increasing, irregular", "irregular, unbounded_increasing")),
+                  filter(new_dataset_type %in% c("partial_rise, partial_decline")),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "grey", alpha = .7, linewidth = 1.2) +
    geom_segment(data = new_bike_rank_freshwater %>% #no opt but bounded by thermal max (bounded decreasing) (red)
@@ -220,7 +220,7 @@ breadth80_list <- unique(breadth80$curve_ID)
    theme(text = element_text(size = 16))
 freswhater_bike
  
-ggsave("freshwater_bike.png", plot = freswhater_bike, path = here("figures"), width = 6, height = 3)
+ggsave("freshwater_bike.pdf", plot = freswhater_bike, path = here("figures"), width = 6, height = 3)
 
 ##marine bike 
 new_bike_rank_marine <- new_bike_rank %>%
@@ -239,15 +239,15 @@ marine_bike <- ggplot(data = new_bike_rank_marine, aes(x = lat_rank)) +
                aes(y = averaged_topt, yend = max_max_test_temp),
                color = "red", alpha = .35, linewidth = 1.2) +
   geom_segment(data = new_bike_rank_marine %>% #floating 'curves' that are cold edge only (blue)
-                 filter(new_dataset_type == "unbounded_increasing"),
+                 filter(new_dataset_type == "partial_rise"),
                aes(y = min_min_test_temp, yend = max_max_test_temp),
                color = "blue", alpha = .35, linewidth = 1.2) +
   geom_segment(data = new_bike_rank_marine %>% #floating 'curves' that are warm edge only (red)
-                 filter(new_dataset_type == "unbounded_decreasing"),
+                 filter(new_dataset_type == "partial_decline"),
                aes(y = min_min_test_temp, yend = max_max_test_temp),
                color = "red", alpha = .35, linewidth = 1.2) +
   geom_segment(data = new_bike_rank_marine %>%  #floating 'curves' that are not informative (grey)
-                 filter(new_dataset_type %in% c("irregular", "unbounded_increasing, unbounded_decreasing", "irregular, unbounded_increasing", "unbounded_increasing, irregular")),
+                 filter(new_dataset_type %in% c("partial_rise, partial_decline")),
                aes(y = min_min_test_temp, yend = max_max_test_temp),
                color = "grey", alpha = .7, linewidth = 1.2) +
   geom_segment(data = new_bike_rank_marine %>% #no opt but bounded by thermal max (bounded decreasing) (red)
@@ -291,9 +291,15 @@ marine_bike <- ggplot(data = new_bike_rank_marine, aes(x = lat_rank)) +
   theme(text = element_text(size = 16))
 marine_bike
 
-ggsave("marine_bike.png", plot = marine_bike, path = here("figures"), width = 6, height = 3)
+ggsave("marine_bike.pdf", plot = marine_bike, path = here("figures"), width = 6, height = 3)
 
-
+#sample size
+# Marine
+nrow(new_bike_rank_marine)
+#120
+# Freshwater
+nrow(new_bike_rank_freshwater)
+#108
 
  extremes <- ggplot(data = new_bike_rank, aes(x = abs_latitude)) +
    geom_segment(data = new_bike_rank %>% #segment from min to topt (blue) 
@@ -305,15 +311,15 @@ ggsave("marine_bike.png", plot = marine_bike, path = here("figures"), width = 6,
                 aes(y = averaged_topt, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are cold edge only (blue)
-                  filter(new_dataset_type == "unbounded_increasing"),
+                  filter(new_dataset_type == "partial_rise"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are warm edge only (red)
-                  filter(new_dataset_type == "unbounded_decreasing"),
+                  filter(new_dataset_type == "partial_decline"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>%  #floating 'curves' that are not informative (grey)
-                  filter(new_dataset_type %in% c("irregular", "unbounded_increasing, unbounded_decreasing", "irregular, unbounded_increasing", "unbounded_increasing, irregular")),
+                  filter(new_dataset_type %in% c("partial_rise, partial_decline")),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #no opt but bounded by thermal max (bounded decreasing) (red)
@@ -364,15 +370,15 @@ ggsave("marine_bike.png", plot = marine_bike, path = here("figures"), width = 6,
                 aes(y = averaged_topt, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are cold edge only (blue)
-                  filter(new_dataset_type == "unbounded_increasing"),
+                  filter(new_dataset_type == "partial_rise"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .4, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are warm edge only (red)
-                  filter(new_dataset_type == "unbounded_decreasing"),
+                  filter(new_dataset_type == "partial_decline"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>%  #floating 'curves' that are not informative (grey)
-                  filter(new_dataset_type %in% c("irregular", "unbounded_increasing, unbounded_decreasing", "irregular, unbounded_increasing", "unbounded_increasing, irregular")),
+                  filter(new_dataset_type %in% c("partial_rise, partial_decline")),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #no opt but bounded by thermal max (bounded decreasing) (red)
@@ -425,11 +431,11 @@ ggsave("marine_bike.png", plot = marine_bike, path = here("figures"), width = 6,
                 aes(y = averaged_topt, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are warm edge only (red)
-                  filter(new_dataset_type == "unbounded_decreasing"),
+                  filter(new_dataset_type == "partial_decline"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>%  #floating 'curves' that are not informative (grey)
-                  filter(new_dataset_type %in% c("irregular", "unbounded_increasing, unbounded_decreasing", "irregular, unbounded_increasing", "unbounded_increasing, irregular")),
+                  filter(new_dataset_type %in% c("partial_rise, partial_decline")),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .2, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #no opt but bounded by thermal max (bounded decreasing) (red)
@@ -438,7 +444,7 @@ ggsave("marine_bike.png", plot = marine_bike, path = here("figures"), width = 6,
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are cold edge only (blue)
-                  filter(new_dataset_type == "unbounded_increasing"),
+                  filter(new_dataset_type == "partial_rise"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "blue", alpha = .4, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #no opt but bounded by thermal min (bounded increasing) (blue)
@@ -481,11 +487,11 @@ ggsave("marine_bike.png", plot = marine_bike, path = here("figures"), width = 6,
                 aes(y = min_min_test_temp, yend = averaged_topt),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are cold edge only (blue)
-                  filter(new_dataset_type == "unbounded_increasing"),
+                  filter(new_dataset_type == "partial_rise"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>%  #floating 'curves' that are not informative (grey)
-                  filter(new_dataset_type %in% c("irregular", "unbounded_increasing, unbounded_decreasing", "irregular, unbounded_increasing", "unbounded_increasing, irregular")),
+                  filter(new_dataset_type %in% c("partial_rise, partial_decline")),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #no opt but bounded by thermal min (bounded increasing) (blue)
@@ -494,7 +500,7 @@ ggsave("marine_bike.png", plot = marine_bike, path = here("figures"), width = 6,
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "lightgrey", alpha = .3, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #floating 'curves' that are warm edge only (red)
-                  filter(new_dataset_type == "unbounded_decreasing"),
+                  filter(new_dataset_type == "partial_decline"),
                 aes(y = min_min_test_temp, yend = max_max_test_temp),
                 color = "red", alpha = .4, linewidth = 1) +
    geom_segment(data = new_bike_rank %>% #segment from topt to max (red) 
@@ -547,4 +553,203 @@ ggsave("piecebike.pdf", plot = piecewise, path = here("figures"), width = 11.5, 
 
 
 
+#example tpc for figure 1
+full_curve <- curve_params_with_breadth_adds %>%
+  filter(
+    dataset_type == "full_curve",
+    !if_any(c(topt, tmin, tmax, thermal_tolerance, breadth), is.na)
+  )
 
+#plot curve ID 388
+#first want to normalize values and predictions
+
+
+vis <- predictions %>%
+  left_join(curves %>% select(curve_ID, study_ID, species_ID, Trait.Group), join_by(curve_ID)) %>%
+  distinct() %>%
+  select(curve_ID, test_temp, .fitted, species_ID) %>%
+  left_join(curve_params_with_breadth_adds) %>%
+  distinct() 
+
+vis <- vis %>%
+  left_join(new_bike_rank %>% select(averaged_topt, averaged_tmin_breadth80, averaged_tmax_breadth80, averaged_thermal_min, averaged_thermal_max, lat_rank, study_ID, species_ID, latitude, Trait.Group), join_by(study_ID, species_ID, latitude, Trait.Group))
+
+vis_curves <- unique(vis$curve_ID)
+
+vis_raw_data <- curves %>%
+  filter(curve_ID %in% vis_curves)
+vis_raw_data <- vis_raw_data %>%
+  group_by(curve_ID) %>%
+  mutate(max_response = max(abs(response_value), na.rm = TRUE))
+vis_raw_data <- vis_raw_data %>%
+  group_by(curve_ID) %>%
+  mutate(response_norm = response_value / max(abs(response_value), na.rm = TRUE)) %>%
+  ungroup() %>%
+  left_join(vis %>% select(curve_ID), join_by(curve_ID)) %>%
+  distinct()
+vis <- vis %>%
+  left_join(vis_raw_data %>% select(curve_ID, max_response), join_by(curve_ID)) %>%
+  distinct()
+vis <- vis %>%
+  group_by(curve_ID) %>%
+  mutate(.fitted_norm = .fitted / max_response) %>%
+  ungroup()
+vis_cold <- vis %>%
+  filter(test_temp <= averaged_topt)
+
+vis_warm <- vis %>%
+  filter(test_temp >= averaged_topt)
+vis <- vis %>%
+  mutate(
+    y_value_tmin_norm = y_value_tmin / max_response,
+    y_value_tmax_norm = y_value_tmax / max_response,
+    y_value_topt_norm = y_value_topt / max_response
+  )
+#normalize 
+
+## add response value
+
+
+
+#add thermalcolor
+vis <- vis %>%
+  group_by(curve_ID) %>%
+  mutate(
+    thermal_side = case_when(
+      test_temp < averaged_topt ~ "cold",
+      test_temp >=  averaged_topt ~ "warm"
+    )
+  ) %>%
+  ungroup
+
+
+vis_raw_data <- vis_raw_data %>%
+  left_join(new_bike_rank %>% select(lat_rank, study_ID, species_ID, latitude, Trait.Group), join_by(study_ID, species_ID, latitude, Trait.Group)) %>%
+  distinct()
+
+example <- ggplot() +
+  geom_vline(data = vis  %>%
+      filter(curve_ID == 406),
+    aes(xintercept = averaged_topt),
+    color = "black",
+    alpha = .6,
+    linewidth = 1
+  ) +
+  geom_vline(
+    data = vis  %>% 
+      filter(curve_ID == 406),
+    aes(xintercept = averaged_thermal_min),
+    color = "blue",
+    alpha = 1,
+    linewidth = 0.5
+  ) +
+  geom_vline(
+    data = vis  %>% 
+      filter(curve_ID == 406),
+    aes(xintercept = averaged_thermal_max),
+    color = "red",
+    alpha = 1,
+    linewidth = 0.5
+  ) +
+  geom_point(
+    data = vis %>% 
+      filter(curve_ID == 406),
+    aes(x = tmin, y = y_value_tmin_norm),
+    color = "blue",
+    alpha = 1,
+    size = 3.55
+  ) +
+  geom_point(
+    data = vis  %>% 
+      filter(curve_ID == 406),
+    aes(x = tmax, y = y_value_tmax_norm),
+    color = "red",
+    alpha = 1,
+    size = 3.5
+  ) +
+  geom_point(
+    data = vis  %>% 
+      filter(curve_ID == 406),
+    aes(x = topt, y = y_value_topt_norm),
+    color = "black",
+    alpha = 1,
+    size = 3.5
+  ) +
+  geom_vline(
+    data = vis  %>% 
+      filter(curve_ID == 406),
+    aes(xintercept = averaged_thermal_max),
+    color = "red",
+    alpha = 1,
+    linewidth = 0.5
+  ) +
+  geom_vline(
+    data = vis  %>% 
+      filter(curve_ID == 406),
+    aes(xintercept = averaged_tmin_breadth80),
+    color = "blue",
+    alpha = 0.8,
+    linewidth = 0.5,
+    linetype = "dashed"
+  ) +
+  geom_vline(
+    data = vis  %>% 
+      filter(curve_ID == 406),
+    aes(xintercept = averaged_tmax_breadth80),
+    color = "red",
+    alpha = 0.8,
+    linewidth = 0.5,
+    linetype = "dashed"
+  ) +
+  geom_point(
+    data = vis_raw_data %>% 
+      filter(curve_ID == 406),
+    aes(x = test_temp, y = response_norm),
+    color = "black",
+    alpha = 0.7,
+    size = 2
+  ) + 
+  geom_line(
+    data = vis_cold %>%
+      filter(curve_ID == 406),
+    aes(
+      x = test_temp,
+      y = .fitted_norm,
+      group = interaction(curve_ID)
+    ),
+    color = "blue",
+    alpha = 0.4,
+    linewidth = 2.5
+  ) +
+  geom_line(
+    data = vis_warm  %>%
+      filter(curve_ID == 406),
+    aes(
+      x = test_temp,
+      y = .fitted_norm,
+      group = interaction(curve_ID)
+    ),
+    color = "red",
+    alpha = 0.4,
+    linewidth = 2.5
+  )+
+  scale_color_manual(
+    values = c(
+      cold = "blue",
+      warm = "red"),
+    guide = "none") + 
+  scale_x_continuous(expand = expansion(mult = 0.025),
+                     breaks = scales::pretty_breaks(n = 8)) +
+  scale_y_continuous(expand = expansion(mult = 0.025),
+                     breaks = scales::pretty_breaks(n = 5)) +
+  labs(
+    x = "T (°C)",
+    y = "Performance",
+  ) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 16))
+
+example
+
+ggsave("curve_406.pdf", plot = example, path = here("figures"), width = 4, height = 3)
