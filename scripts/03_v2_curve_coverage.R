@@ -63,7 +63,7 @@ optimum_curves2_list <- c(optimum_curves2$curve_ID)
 #   mutate(label = paste0(Trait.Group, " (", curve_ID, ")")) %>%
 #   select(curve_ID, label) %>%
 #   deframe()
-# ggplot() +
+# # ggplot() +
 #   geom_point(data = data_scaled %>%
 #                filter(curve_ID %in% difference2),
 #              aes(x = test_temp, y = response_scaled)) +
@@ -86,8 +86,6 @@ data_scaled <- data_scaled %>%
 
 ### 4.1 Bounded datasets with coverage to estimate topt ###
 
-#Made the closeness to 0 further for this criteria because overall more data coverage ie more confidence in estimating parameters
-
 opt <- data_scaled %>%
   filter(has_optimum == TRUE) %>%
   group_by(curve_ID) %>%
@@ -109,13 +107,13 @@ full_rise_with_opt <- opt %>%
 full_rise_with_opt_list <- unique(full_rise_with_opt$curve_ID)
 
 ##vis
-ggplot() +
-  geom_point(data = opt %>%
-               filter(left_bound == "yes") %>%
-               filter(right_bound == "no"),
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 6,
-                      labeller = labeller(curve_ID = curve_labels))
+# ggplot() +
+#   geom_point(data = opt %>%
+#                filter(left_bound == "yes") %>%
+#                filter(right_bound == "no"),
+#              aes(x = test_temp, y = response_scaled)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 6,
+#                       labeller = labeller(curve_ID = curve_labels))
 #no manual reassignment
 
 ### 4.3 right bounded/ ctmax with topt
@@ -125,13 +123,13 @@ full_decline_with_opt <- opt %>%
 full_decline_with_opt_list <- unique(full_decline_with_opt$curve_ID)
 
 ##vis
-ggplot() +
-  geom_point(data = opt %>%
-               filter(left_bound == "no") %>%
-               filter(right_bound == "yes"),
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 2,
-                      labeller = labeller(curve_ID = curve_labels))
+# ggplot() +
+#   geom_point(data = opt %>%
+#                filter(left_bound == "no") %>%
+#                filter(right_bound == "yes"),
+#              aes(x = test_temp, y = response_scaled)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 2,
+#                       labeller = labeller(curve_ID = curve_labels))
 #no manual reassignment
 
 ### 4.4 full tpc
@@ -141,13 +139,13 @@ full_curve <- opt %>%
 full_curve_list <- unique(full_curve$curve_ID) #20
 
 ##vis
-ggplot() +
-  geom_point(data = opt %>%
-               filter(left_bound == "yes") %>%
-               filter(right_bound == "yes"),
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 3,
-                      labeller = labeller(curve_ID = curve_labels))
+# ggplot() +
+#   geom_point(data = opt %>%
+#                filter(left_bound == "yes") %>%
+#                filter(right_bound == "yes"),
+#              aes(x = test_temp, y = response_scaled)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 3, nrow = 3, page = 3,
+#                       labeller = labeller(curve_ID = curve_labels))
 #no manual reassignment
 
 ### 4.5. optimum only ###
@@ -157,13 +155,13 @@ optimum_only <- opt %>%
 optimum_only_list <- unique(optimum_only$curve_ID)
 
 #vis
-ggplot() +
-  geom_point(data = opt %>%
-               filter(left_bound == "no") %>%
-               filter(right_bound == "no"),
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 5, nrow = 5, page = 6,
-                      labeller = labeller(curve_ID = curve_labels))
+# ggplot() +
+#   geom_point(data = opt %>%
+#                filter(left_bound == "no") %>%
+#                filter(right_bound == "no"),
+#              aes(x = test_temp, y = response_scaled)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 5, nrow = 5, page = 6,
+#                       labeller = labeller(curve_ID = curve_labels))
 #no manual reassignment
 
 #### 5 Categorize datasets that do not have coverage to estimate topt ####
@@ -192,26 +190,28 @@ partial_rise_with_min <- non_opt %>%
   filter(left_bound == "yes")
 
 #vis check
-ggplot() +
-  geom_point(data = non_opt %>%
-               filter(left_bound == "yes"),
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 2,
-                      labeller = labeller(curve_ID = curve_labels))
-partial_rise_with_min_list <- c(unique(partial_rise_with_min$curve_ID)) #no manual reassignment 
+# ggplot() +
+#   geom_point(data = non_opt %>%
+#                filter(left_bound == "yes"),
+#              aes(x = test_temp, y = response_scaled)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 2,
+#                       labeller = labeller(curve_ID = curve_labels))
+#no manual reassignment
+partial_rise_with_min_list <- c(unique(partial_rise_with_min$curve_ID)) 
 
 ## CTMAX / right bound only datasets
 partial_decline_with_max <- non_opt %>%
   filter(right_bound == "yes")
 
 #vis check
-ggplot() +
-  geom_point(data = non_opt %>%
-               filter(right_bound == "yes"),
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 1,
-                      labeller = labeller(curve_ID = curve_labels))
-partial_decline_with_max_list <- c(unique(partial_decline_with_max$curve_ID)) #no manual reassignment
+# ggplot() +
+#   geom_point(data = non_opt %>%
+#                filter(right_bound == "yes"),
+#              aes(x = test_temp, y = response_scaled)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 1,
+#                       labeller = labeller(curve_ID = curve_labels))
+#no manual reassignment
+partial_decline_with_max_list <- c(unique(partial_decline_with_max$curve_ID)) 
 
 ### 5.2 categorize datasets that are not bounded by a response close to 0, ie not enough coverage to estimate ctmin or ctmax, but potentially eh ###
 unbounded_NO <- non_opt %>% #unbounded, no optima
@@ -230,45 +230,32 @@ unbounded_curve_direction <- data_scaled %>%
 ## unbounded, increasing ##
 increasing_unbounded <- unbounded_curve_direction %>%
   filter(direction == "increasing")
-partial_rise <- c(unique(increasing_unbounded$curve_ID)) #150 now #120
 
 #vis check
-ggplot() +
-  geom_point(data = increasing_unbounded,
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 1,
-                      labeller = labeller(curve_ID = curve_labels))
-
-#155, 344, 354, 353, -- move to flat, ie probably irregular (haven't done this yet!)
-manual_reass_list_remove_PR <- c(155, 344, 353, 354)
-partial_rise_list <- partial_rise[!partial_rise %in% manual_reass_list_remove_PR]
+# ggplot() +
+#   geom_point(data = increasing_unbounded,
+#              aes(x = test_temp, y = response_scaled)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 1,
+#                       labeller = labeller(curve_ID = curve_labels))
+partial_rise_list <- c(unique(increasing_unbounded$curve_ID))  #120
 
 ## unbounded, decreasing ##
 decreasing_unbounded <- unbounded_curve_direction %>%
   filter(direction == "decreasing")
-partial_decline_list <- c(unique(decreasing_unbounded$curve_ID)) #39
+
 #vis check
-ggplot() +
-  geom_point(data = decreasing_unbounded,
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 2,
-                      labeller = labeller(curve_ID = curve_labels))
-#209, 356, 358, 378 - -- move to flat, ie probably irregular 
-manual_reass_list_remove_PD <- c(209, 356, 358, 378)
-partial_decline_list <- partial_decline_list[!partial_decline_list %in% manual_reass_list_remove_PD]
+# ggplot() +
+#   geom_point(data = decreasing_unbounded,
+#              aes(x = test_temp, y = response_scaled)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 2,
+#                       labeller = labeller(curve_ID = curve_labels))
+partial_decline_list <- c(unique(decreasing_unbounded$curve_ID)) #39
 
 ## flat 
 flat_unbounded <- unbounded_curve_direction %>%
   filter(direction == "flat") #63 - survival curve with 100% across all temps, move to irregular 
-ggplot() +
-  geom_point(data = data_scaled %>%
-               filter(curve_ID %in% irregular_list),
-             aes(x = test_temp, y = response_scaled)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 1,
-                      labeller = labeller(curve_ID = curve_labels))
-irregular <- unique(flat_unbounded$curve_ID)
 
-irregular_list <- c(irregular, manual_reass_list_remove_PD, manual_reass_list_remove_PR)
+irregular_list <- c(unique(flat_unbounded$curve_ID))
 
 
 
@@ -277,7 +264,7 @@ irregular_list <- c(irregular, manual_reass_list_remove_PD, manual_reass_list_re
 all <- c(full_curve_list, optimum_only_list, full_rise_with_opt_list, full_decline_with_opt_list, partial_rise_with_min_list, partial_decline_with_max_list, partial_rise_list, partial_decline_list, irregular_list)
 
 length(unique(all))
-curve_ids <- c(unique(responses$curve_ID))
+curve_ids <- c(unique(curves$curve_ID))
 setdiff(curve_ids, all)
 setdiff(all, curve_ids)
 

@@ -12,7 +12,7 @@
 #
 install.packages("rTPC")
 library(rTPC)
-
+rm(list=ls())
 #### 01. load data ####
 parameters <- readRDS(here("processed-data", "tpcs_with_fitted_params_10_6.RDS"))
 
