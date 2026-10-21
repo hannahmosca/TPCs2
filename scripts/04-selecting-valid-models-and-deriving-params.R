@@ -3,7 +3,6 @@
 #   Filters candidate thermal performance curve (TPC) models to retain
 #   biologically reasonable fits and selects the top-ranked model(s) per curve. Outputs a dataset of tpc parameters
 
-rm(list=ls())
 library(here)
 library(dplyr)
 library(ggplot2)
@@ -26,14 +25,14 @@ length(unique(model_preds$curve_ID)) #456
 #### 03 filter out irregular datasets ####
 irregular <- curves %>%
   filter(dataset_type == "irregular")
-irregular_list <- c(unique(irregular$curve_ID)) #9 datasets
+irregular_list <- c(unique(irregular$curve_ID)) #1 dataset
 
 model_preds_1 <- model_preds %>%
-  filter(!(curve_ID %in% irregular_list)) #447 now
+  filter(!(curve_ID %in% irregular_list)) 
 params_1 <- params %>%
-  filter(!(curve_ID %in% irregular_list)) #447 now
+  filter(!(curve_ID %in% irregular_list)) 
 model_evaluations_1 <- model_evaluations %>%
-  filter(!(curve_ID %in% irregular_list)) #447 now
+  filter(!(curve_ID %in% irregular_list)) 
 
 #make some space
 rm(model_preds)
@@ -67,7 +66,7 @@ valid_models <- model_preds_with_bounds %>%
   select(-valid) %>%
   filter(model != "ratkowsky") #consistently poor fit/weird shape
 
-length(unique(valid_models$curve_ID)) #447
+length(unique(valid_models$curve_ID)) #455
 
 #### 03 filter out models that predict tmin or tmax to be more than 5 degrees on the x away from the min temp tested and max temp tested
 
@@ -101,7 +100,7 @@ valid_models <- valid_models %>%
   filter(n_models == 1 |!any_five_ok |five_flag) %>%
   ungroup()
 
-length(unique(valid_models$curve_ID)) # #447
+length(unique(valid_models$curve_ID)) # #455
 
 valid_preds <- model_preds_1 %>%
   semi_join(valid_models, by = c("curve_ID", "model"))
@@ -117,34 +116,34 @@ valid_params <- params_1 %>%
 #somehow here i want to put NA when the param isn't valid based on the flags i made
 
 #check these#
-ggplot() +
-  geom_point(data = curves,
-             aes(x = test_temp, y = response_value)) +
-  geom_line(data = valid_preds,
-            aes(x = test_temp, y = .fitted, colour = model)) +
-  geom_vline(data = valid_params,
-             aes(xintercept = ctmin)) +
-  geom_vline(data = valid_params,
-             aes(xintercept = ctmax)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 1) +
-  scale_color_manual(
-    values = c(
-      "johnsonlewin" = "slateblue", 
-      "lactin2" = "#4DAF4A",  
-      "oneill"= "magenta", 
-      "ratkowsky" = "yellow",  
-      "rezende" = "#A65628",  
-      "spain" = "royalblue3",  
-      "thomas" = "#999999",  
-      "weibull" = "black"  ,
-      "hinshelwood" = "aquamarine",
-      "briere" = "lightblue", 
-      "gaussian" = "maroon",
-      "quadratic" = "green"
-    )
-  ) +
-  theme_minimal() +
-  labs(x = "Test Temperature", y = "Response", color = "Model")
+# ggplot() +
+#   geom_point(data = curves,
+#              aes(x = test_temp, y = response_value)) +
+#   geom_line(data = valid_preds,
+#             aes(x = test_temp, y = .fitted, colour = model)) +
+#   geom_vline(data = valid_params,
+#              aes(xintercept = ctmin)) +
+#   geom_vline(data = valid_params,
+#              aes(xintercept = ctmax)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 1) +
+#   scale_color_manual(
+#     values = c(
+#       "johnsonlewin" = "slateblue", 
+#       "lactin2" = "#4DAF4A",  
+#       "oneill"= "magenta", 
+#       "ratkowsky" = "yellow",  
+#       "rezende" = "#A65628",  
+#       "spain" = "royalblue3",  
+#       "thomas" = "#999999",  
+#       "weibull" = "black"  ,
+#       "hinshelwood" = "aquamarine",
+#       "briere" = "lightblue", 
+#       "gaussian" = "maroon",
+#       "quadratic" = "green"
+#     )
+#   ) +
+#   theme_minimal() +
+#   labs(x = "Test Temperature", y = "Response", color = "Model")
 
 #make some space
 rm(model_preds_1)
@@ -211,35 +210,35 @@ breadth_curves <- curves %>%
 breadth_topt <- unique(breadth_curves$curve_ID) 
 breadth_topt_list <- c(breadth_topt)
 
-ggplot() +
-  geom_point(data = curves %>% 
-               filter(curve_ID %in% breadth_topt_list),
-             aes(x = test_temp, y = response_value)) +
-  geom_line(data = top_model_preds %>%
-              filter(curve_ID %in% breadth_topt_list),
-            aes(x = test_temp, y = .fitted, colour = model)) +
-  geom_vline(data = top_params %>%
-               filter(curve_ID %in% breadth_topt_list),
-             aes(xintercept = topt)) +
-  facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 2) +
-  scale_color_manual(
-    values = c(
-      "johnsonlewin" = "slateblue", 
-      "lactin2" = "#4DAF4A",  
-      "oneill"= "magenta", 
-      "ratkowsky" = "yellow",  
-      "rezende" = "#A65628",  
-      "spain" = "royalblue3",  
-      "thomas" = "#999999",  
-      "weibull" = "black"  ,
-      "hinshelwood" = "aquamarine",
-      "briere" = "lightblue", 
-      "gaussian" = "maroon",
-      "quadratic" = "green"
-    )
-  ) +
-  theme_minimal() +
-  labs(x = "Test Temperature", y = "Response", color = "Model")
+# ggplot() +
+#   geom_point(data = curves %>% 
+#                filter(curve_ID %in% breadth_topt_list),
+#              aes(x = test_temp, y = response_value)) +
+#   geom_line(data = top_model_preds %>%
+#               filter(curve_ID %in% breadth_topt_list),
+#             aes(x = test_temp, y = .fitted, colour = model)) +
+#   geom_vline(data = top_params %>%
+#                filter(curve_ID %in% breadth_topt_list),
+#              aes(xintercept = topt)) +
+#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 2) +
+#   scale_color_manual(
+#     values = c(
+#       "johnsonlewin" = "slateblue", 
+#       "lactin2" = "#4DAF4A",  
+#       "oneill"= "magenta", 
+#       "ratkowsky" = "yellow",  
+#       "rezende" = "#A65628",  
+#       "spain" = "royalblue3",  
+#       "thomas" = "#999999",  
+#       "weibull" = "black"  ,
+#       "hinshelwood" = "aquamarine",
+#       "briere" = "lightblue", 
+#       "gaussian" = "maroon",
+#       "quadratic" = "green"
+#     )
+#   ) +
+#   theme_minimal() +
+#   labs(x = "Test Temperature", y = "Response", color = "Model")
 
 
 
