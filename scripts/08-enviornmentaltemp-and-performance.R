@@ -136,6 +136,11 @@ install.packages("mgcv")
 library(mgcv)
 data <- collapsed_params_unique %>%
   filter(!is.na(averaged_topt))
+sample_sizes <- data %>%
+  count(environment)
+#freshwater - 73
+#marine - 67
+sample_sizes
 lat_avtopt_gam <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = data, method = "REML")
 
 summary(lat_avtopt_model)
@@ -277,7 +282,12 @@ ggplot(data = collapsed_params_unique %>%
   ) +
   theme_classic()
 
-
+data <- collapsed_params_unique %>%
+  filter(!is.na(averaged_pbreadth))
+sample_sizes <- data %>%
+  count(environment)
+#freshwater - 51
+# marine - 43
 sd_pbreadth_model <- lmer(averaged_pbreadth ~ sd * environment + (1 | study_ID), 
                           data = collapsed_params_unique %>%
                             filter(!is.na(averaged_pbreadth)))
@@ -313,8 +323,8 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 sd_pbreadth <- ggplot(data = pred_grid, aes(x = sd)) +
   geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)), aes(x = sd, y = averaged_pbreadth, color = environment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = environment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  geom_line(aes(y = pred, color = environment), linetype = "dashed") +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.10) +
   labs(x = "Habitat Temp. Variation (SD)", y = "Performance Breadth") +
   scale_color_manual(
     name = "Realm",
@@ -342,7 +352,10 @@ ggplot(data = collapsed_params_unique %>%
     values = c("marine" = "blue", "freshwater" = "lightgreen")
   ) +
   theme_classic()
-
+data <- collapsed_params_unique %>%
+  filter(!is.na(averaged_tbreadth))
+sample_sizes <- data %>%
+  count(environment)
 
 sd_tbreadth_model <- lmer(averaged_tbreadth ~ sd * environment + (1 | study_ID), 
                           data = collapsed_params_unique %>%
@@ -379,8 +392,8 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 sd_tbreadth <- ggplot(data = pred_grid, aes(x = sd)) +
   geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)), aes(x = sd, y = averaged_tbreadth, color = environment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = environment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  geom_line(aes(y = pred, color = environment), linetype = "dashed") +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.1) +
   labs(x = "Habitat Temp. Variation (SD)", y = "Thermal Tolerance Breadth") +
   scale_color_manual(
     name = "Realm",
@@ -402,7 +415,8 @@ ggsave("tolerance_breadth_sd_lme.pdf", plot = sd_tbreadth, path = here("figures"
 TSM <- collapsed_params_unique %>%
   filter(!is.na(averaged_topt)) %>%
   mutate(TSM = averaged_topt - mean)
-
+sample_sizes <- TSM %>%
+  count(environment)
 ## abs latitude and TSM
 ggplot(data = TSM,
        aes(x = abs_latitude, y = TSM, color = environment)) +
@@ -447,17 +461,17 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 TSM_lat <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
   geom_point(data = TSM, aes(x = abs_latitude, y = TSM, color = environment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = environment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  geom_line(aes(y = pred, color = environment, linetype = environment)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment, alpha = environment)) +
+  scale_linetype_manual(values = c("marine" = "dashed", "freshwater" = "solid")) +
+  scale_alpha_manual(values = c("marine" = 0.1, "freshwater" = 0.2)) +
   labs(x = "Absolute Latitude", y = "Thermal Safety Margin") +
   scale_color_manual(
     name = "Realm",
-    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
-  ) +
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")) +
   scale_fill_manual(
     name = "Realm",
-    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
-  ) +
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
   theme_classic(base_size = 16) +
@@ -513,8 +527,8 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 TSM_SD <- ggplot(data = pred_grid, aes(x = sd)) +
   geom_point(data = TSM, aes(x = sd, y = TSM, color = environment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = environment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  geom_line(aes(y = pred, color = environment), linetype = "dashed") +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.10) +
   labs(x = "Habitat Temp. Variation (SD)", y = "Thermal Safety Margin") +
   scale_color_manual(
     name = "Realm",
@@ -582,8 +596,8 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 avpbreadth_latitude <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
   geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)), aes(x = abs_latitude, y = averaged_pbreadth, color = environment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = environment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  geom_line(aes(y = pred, color = environment), linetype = "dashed") +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.10) +
   labs(x = "Absolute Latitude", y = "Performance Breadth") +
   scale_color_manual(
     name = "Realm",
@@ -595,7 +609,8 @@ avpbreadth_latitude <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
   ) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
-  theme_classic(base_size = 16)
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none")
 avpbreadth_latitude
 
 #### linear model with performance breadth and tolerance breadth
@@ -650,7 +665,7 @@ tolerance_and_breadth_graph <- ggplot(data = pred_grid, aes(x = averaged_pbreadt
 
 tolerance_and_breadth_graph
 
-ggsave("tolerance_breadth_with_performance_breadth.png", plot = tolerance_and_breadth_graph, path = here("figures"), width = 4, height = 4.2)
+ggsave("tolerance_breadth_with_performance_breadth.pdf", plot = tolerance_and_breadth_graph, path = here("figures"), width = 4, height = 4)
 
 #### 12 model summaries ####
 install.packages("sjPlot")
@@ -711,8 +726,8 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 avtbreadth_latitude <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
   geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)), aes(x = abs_latitude, y = averaged_tbreadth, color = environment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = environment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  geom_line(aes(y = pred, color = environment), linetype = "dashed") +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.10) +
   labs(x = "Absolute Latitude", y = "Tolerance Breadth") +
   scale_color_manual(
     name = "Realm",
@@ -797,10 +812,10 @@ topt_extreme_temp <- ggplot(data = pred_grid, aes(x = q_high)) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015,0.015))) +
   theme_classic(base_size = 16) +
-  theme(legend.position = "right")
+  theme(legend.position = "none")
 
 topt_extreme_temp
-ggsave("topt_extremetemp_lme.png", plot = topt_extreme_temp, path = here("figures"), width = 5, height = 4)
+ggsave("topt_extremetemp_lme.pdf", plot = topt_extreme_temp, path = here("figures"), width = 4, height = 4)
 
 
 
@@ -818,17 +833,24 @@ ggsave("topt_extremetemp_lme.png", plot = topt_extreme_temp, path = here("figure
 
 ggplot(data = collapsed_params_unique %>%
          filter(!is.na(averaged_e)),
-       aes(x = abs_latitude, y = averaged_e, color = enviornment)) +
+       aes(x = abs_latitude, y = averaged_e, color = environment)) +
   geom_point(alpha = 0.7) +
   geom_smooth() +
   scale_color_manual(
-    name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
+    name = "environment",
+    values = c("marine" = "blue", "freshwater" = "lightgreen")
   ) +
   theme_classic()
 
+sample_sizes <- collapsed_params_unique %>%
+  filter(!is.na(averaged_e)) %>%
+  count(environment)
 
-act_eng_lat_model <- lmer(averaged_e ~ abs_latitude * enviornment + (1 | study_ID), 
+sample_sizes
+
+# freshwater     45
+# marine         47
+act_eng_lat_model <- lmer(averaged_e ~ abs_latitude * environment + (1 | study_ID), 
                      data = collapsed_params_unique %>% 
                        filter(!is.na(averaged_e)))
 
@@ -837,21 +859,21 @@ summary(act_eng_lat_model)
 ## want to make sure only predicting on range of data
 lat_range <- collapsed_params_unique %>%
   filter(!is.na(averaged_e)) %>%
-  group_by(enviornment) %>%
+  group_by(environment) %>%
   summarise(
     min_abs_latitude = min(abs_latitude),
     max_abs_latitude = max(abs_latitude))
 lat_range
 fresh_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_latitude[lat_range$enviornment=="Freshwater"],
-                     lat_range$max_abs_latitude[lat_range$enviornment=="Freshwater"],
+  abs_latitude = seq(lat_range$min_abs_latitude[lat_range$environment=="freshwater"],
+                     lat_range$max_abs_latitude[lat_range$environment=="freshwater"],
            length.out = 200),
-  enviornment = "Freshwater")
+  environment = "freshwater")
 marine_grid <- data.frame(
-  abs_latitude = seq(lat_range$min_abs_latitude[lat_range$enviornment=="Marine"],
-                     lat_range$max_abs_latitude[lat_range$enviornment=="Marine"],
+  abs_latitude = seq(lat_range$min_abs_latitude[lat_range$environment=="marine"],
+                     lat_range$max_abs_latitude[lat_range$environment=="marine"],
            length.out = 200),
-  enviornment = "Marine")
+  environment = "marine")
 
 pred_grid <- bind_rows(fresh_grid, marine_grid)
 pred_grid$pred <- predict(act_eng_lat_model, newdata = pred_grid, re.form = NA)
@@ -860,28 +882,26 @@ pred_grid$se   <- predict(act_eng_lat_model, newdata = pred_grid, re.form = NA, 
 pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
 pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
-
 act_lat <- ggplot(data = pred_grid, aes(x = abs_latitude)) +
   geom_point(data = collapsed_params_unique %>%
-               filter(!is.na(averaged_e)), aes(x = abs_latitude, y = averaged_e, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = enviornment)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = enviornment), alpha = 0.20) +
+               filter(!is.na(averaged_e)), aes(x = abs_latitude, y = averaged_e, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred, color = environment), linetype = "dashed") +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.10) +
   labs(x = "Absolute Latitude", y = "Activation Energy (Ev)") +
   scale_color_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C"))+
   scale_fill_manual(
     name = "Realm",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
-  ) +
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")) +
   theme_classic(base_size = 16) +
   scale_x_continuous(expand = expansion(mult = c(0.015,0.015))) +
   scale_y_continuous(expand = expansion(mult = c(0.015, 0.015))) +
-  theme(legend.position = "right")
+  theme(legend.position = "top")
 
 act_lat
-ggsave("activation_eng_and_latitude.png", plot = act_lat, path = here("figures"), width = 7, height = 4)
+
+ggsave("activation_eng_and_latitude.pdf", plot = act_lat, path = here("figures"), width = 4, height = 4)
 
 #### does activation energy decrease with temp?
 
@@ -1168,24 +1188,25 @@ topt_breadth
 #### 16. residual topt and breadth ####
 topts <- collapsed_params_unique %>%
   filter(!is.na(averaged_topt))
-topts$resid_topt_lat = residuals(lat_avtopt_model)
+topts$resid_topt_lat = residuals(lat_avtopt_gam)
 ## performance breadth ##
 ggplot(data = topts %>%
          filter(!is.na(averaged_pbreadth)),
-       aes(x = averaged_pbreadth, y = resid_topt_lat, color = enviornment)) +
+       aes(x = averaged_pbreadth, y = resid_topt_lat, color = environment)) +
   geom_point(alpha = 0.7) +
   scale_color_manual(
-    name = "Environment",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    name = "environment",
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   theme_classic()
 
-resid_topt_perbreadth <- lmer(resid_topt_lat ~ averaged_pbreadth  + (1 | study_ID), 
-                         data = topts %>% 
-                           filter(!is.na(averaged_pbreadth)))
 
+resid_topt_perbreadth_lm <- lm(
+  resid_topt_lat ~ averaged_pbreadth,
+  data = topts %>% filter(!is.na(averaged_pbreadth))
+)
 summary(resid_topt_perbreadth)
-
+nobs(resid_topt_perbreadth)
 ## want to make sure only predicting on range of data
 performance_range <- topts %>%
   filter(!is.na(averaged_pbreadth)) %>%
@@ -1206,12 +1227,12 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 resid_topt_perbreadth_graph <- ggplot(data = pred_grid, aes(x = averaged_pbreadth)) +
   geom_point(data = topts %>%
-               filter(!is.na(averaged_pbreadth)), aes(x = averaged_pbreadth, y = resid_topt_lat, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred), color = "black", alpha = .8) +
+               filter(!is.na(averaged_pbreadth)), aes(x = averaged_pbreadth, y = resid_topt_lat, color = environment), size = 2, alpha = .65) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "black", alpha = 0.20) +
+  geom_line(aes(y = pred), color = "black", alpha = .8) +
   scale_color_manual(
     name = "Environment",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")) +
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")) +
   labs(x = "Performance Breadth", y = "Topt-adjusted for latitude") +
   theme_classic(base_size = 16) +
   theme(legend.position = "none")
@@ -1222,11 +1243,11 @@ resid_topt_perbreadth_graph
 ## tolerance breadth ##
 ggplot(data = topts %>%
          filter(!is.na(averaged_tbreadth)),
-       aes(x = averaged_tbreadth, y = resid_topt_lat, color = enviornment)) +
+       aes(x = averaged_tbreadth, y = resid_topt_lat, color = environment)) +
   geom_point(alpha = 0.7) +
   scale_color_manual(
     name = "Environment",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   theme_classic()
 
@@ -1234,10 +1255,10 @@ ggplot(data = topts %>%
 
 
 
-resid_topt_tol <- lmer(resid_topt_lat ~ averaged_tbreadth  + (1 | study_ID), 
+resid_topt_tol <- lm(resid_topt_lat ~ averaged_tbreadth, 
                               data = topts %>% 
                                 filter(!is.na(averaged_tbreadth)))
-
+nobs(resid_topt_tol)
 summary(resid_topt_tol)
 
 ## want to make sure only predicting on range of data
@@ -1260,22 +1281,22 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 resid_topt_tolbreadth_graph <- ggplot(data = pred_grid, aes(x = averaged_tbreadth)) +
   geom_point(data = topts %>%
-               filter(!is.na(averaged_tbreadth)), aes(x = averaged_tbreadth, y = resid_topt_lat, color = enviornment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred), color = "black", alpha = .8) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "black", alpha = 0.20) +
+               filter(!is.na(averaged_tbreadth)), aes(x = averaged_tbreadth, y = resid_topt_lat, color = environment), size = 2, alpha = .65) +
+  geom_line(aes(y = pred), linetype = "dashed", color = "black", alpha = .8) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "black", alpha = 0.1) +
   scale_color_manual(
     name = "Environment",
-    values = c("Marine" = "#1F78B4", "Freshwater" = "#33A02C")
+    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
   ) +
   labs(x = "Tolerance Breadth", y = "Topt-adjusted for latitude") +
   theme_classic(base_size = 16) +
   theme(legend.position = "none")
-
-adj_topt_breadth <- resid_topt_tolbreadth_graph + resid_topt_perbreadth_graph
+resid_topt_tolbreadth_graph
+adj_topt_breadth <-  resid_topt_perbreadth_graph + resid_topt_tolbreadth_graph
 adj_topt_breadth
 
-ggsave("adjusted_topt_breadth_lin_mod.png", plot = adj_topt_breadth, path = here("figures"), width = 7, height = 4)
+ggsave("adjusted_topt_breadth_lin_mod.pdf", plot = adj_topt_breadth, path = here("figures"), width = 7, height = 4)
 
-tab_model(resid_topt_tol, resid_topt_perbreadth, show.stat = TRUE, show.se = TRUE)
+tab_model(resid_topt_perbreadth, resid_topt_tol, show.stat = TRUE, show.se = TRUE)
 
 

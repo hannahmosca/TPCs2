@@ -99,12 +99,3 @@ dataset_types <- read.csv(here('processed-data', "fishtherm_curve_coverage_sorte
 n <- dataset_types %>%
   distinct(curve_ID, dataset_type) %>%
   count(dataset_type, name = "n_tpc")
-#### this should be reported in the text - the sorted data #s before things were filtered out ####
-
-
-n_parameter_total <- plot_data %>%
-  distinct(curve_ID, parameter) %>%
-  count(parameter, name = "n_total")
-n_parameter_group <- plot_data %>%
-  distinct(curve_ID, dataset_type, parameter) %>%
-  count(dataset_type, parameter, name = "n_group")

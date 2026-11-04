@@ -1,14 +1,15 @@
-# title: selecting-valid-models-and-deriving-params.R
+# Selecting-valid-models-and-deriving-params.R
 # Description:
 #   Filters candidate thermal performance curve (TPC) models to retain
 #   biologically reasonable fits and selects the top-ranked model(s) per curve. Outputs a dataset of tpc parameters
+
 
 library(here)
 library(dplyr)
 library(ggplot2)
 library(ggforce)
 library(tidyverse)
-rm(list=ls())
+
 #### 01 load data ####
 curves <- read.csv(here('processed-data', 'fishtherm_curve_coverage_sorted_updated10_5.csv')) %>%
   select(-(X))
@@ -113,37 +114,6 @@ valid_params <- params_1 %>%
   mutate(ctmin = if_else(min_five_ok == FALSE, NA_real_, ctmin),
          ctmax = if_else(max_five_ok == FALSE, NA_real_, ctmax))
 
-#somehow here i want to put NA when the param isn't valid based on the flags i made
-
-#check these#
-# ggplot() +
-#   geom_point(data = curves,
-#              aes(x = test_temp, y = response_value)) +
-#   geom_line(data = valid_preds,
-#             aes(x = test_temp, y = .fitted, colour = model)) +
-#   geom_vline(data = valid_params,
-#              aes(xintercept = ctmin)) +
-#   geom_vline(data = valid_params,
-#              aes(xintercept = ctmax)) +
-#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 6, nrow = 6, page = 1) +
-#   scale_color_manual(
-#     values = c(
-#       "johnsonlewin" = "slateblue", 
-#       "lactin2" = "#4DAF4A",  
-#       "oneill"= "magenta", 
-#       "ratkowsky" = "yellow",  
-#       "rezende" = "#A65628",  
-#       "spain" = "royalblue3",  
-#       "thomas" = "#999999",  
-#       "weibull" = "black"  ,
-#       "hinshelwood" = "aquamarine",
-#       "briere" = "lightblue", 
-#       "gaussian" = "maroon",
-#       "quadratic" = "green"
-#     )
-#   ) +
-#   theme_minimal() +
-#   labs(x = "Test Temperature", y = "Response", color = "Model")
 
 #make some space
 rm(model_preds_1)
@@ -287,3 +257,286 @@ params_with_curve_info <- params_with_curve_info %>%
   select(-(c(rmax, e, eh, q10, thermal_safety_margin, skewness)))
   
 saveRDS(params_with_curve_info, file = here("processed-data", "tpcs_with_fitted_params_10_6.RDS"))
+
+
+#### supplemental dot and whisker figure showing parameter estimates from different TPC models from the same dataset ####
+sup_data <- valid_params %>%
+  left_join(valid_model_evaluations %>% select(curve_ID, model, AIC, isConv), join_by(curve_ID, model)) 
+sup_data <- sup_data %>%
+  left_join(curves %>% select(curve_ID, thermal_min_TF, thermal_max_TF, breadth_TF, topt_TF, thermal_tolerance_TF, increasing_side_TF, decreasing_side_TF), join_by(curve_ID)) %>%
+  distinct()
+best_param <- best_param %>%
+  rename(best_model = model)
+sup_data <- sup_data %>%
+  left_join(best_param %>% select(best_model, curve_ID), join_by(curve_ID))
+sup_data <- sup_data %>%
+  mutate(topt = ifelse(topt_TF == FALSE, NA, topt)) %>%
+  mutate(ctmin = ifelse(thermal_min_TF == FALSE, NA, ctmin)) %>%
+  mutate(ctmax = ifelse(thermal_max_TF == FALSE, NA, ctmax)) %>%
+  mutate(thermal_tolerance = ifelse(thermal_tolerance_TF == FALSE, NA, thermal_tolerance)) %>%
+  mutate(thermal_tolerance = ifelse(thermal_tolerance_TF == TRUE & (min_five_ok == FALSE | max_five_ok == FALSE), NA, thermal_tolerance)) %>%
+  mutate(breadth = ifelse(breadth_TF == FALSE, NA, breadth)) %>%
+  mutate(y_value_topt = ifelse(topt_TF == FALSE, NA, y_value_topt)) %>%
+  mutate(y_value_ctmin = ifelse(thermal_min_TF == FALSE, NA, y_value_ctmin)) %>%
+  mutate(y_value_ctmax = ifelse(thermal_max_TF == FALSE, NA, y_value_ctmax)) %>%
+  select(-(c(rmax, e, eh, q10, thermal_safety_margin, skewness)))
+
+sup_data <- sup_data %>%
+  group_by(curve_ID) %>%
+  mutate(n_models = n_distinct(model)) %>%
+  ungroup()
+
+sup_long <- sup_data %>%
+  pivot_longer(cols = c(topt, ctmin, ctmax, thermal_tolerance, breadth),
+    names_to = "parameter",
+    values_to = "estimate")
+sup_long <- sup_long %>%
+  mutate(
+    estimate = ifelse(is.infinite(estimate), NA, estimate)
+  )
+sup_long <- sup_long %>%
+  group_by(curve_ID, parameter) %>%
+  mutate(
+    best_estimate = estimate[model == best_model],
+    diff_best = best_estimate - estimate) %>%
+  ungroup()
+##establish curve order
+curve_order <- sup_long %>%
+  filter(n_models > 1) %>%
+  pull(curve_ID) %>%
+  unique() %>%
+  sort()
+pal2 = hcl(h = seq(15, 315, length.out = 11), c = 60, l = 65)
+pal2 <- hcl(h = seq(15, 315, length.out = 11), c = 60, l = 65)
+
+names(pal2) <- c(
+  "weibull", "thomas", "spain", "rezende", "quadratic", "oneill",
+  "lactin2", "johnsonlewin", "gaussian", "briere","hinshelwood")
+#### just topt ####
+topt_mean_diff <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "topt",
+    diff_best != 0
+  ) %>%
+  summarise(mean_diff = mean(abs(diff_best))) %>%
+  pull(mean_diff)
+topt_n <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "topt",
+    diff_best != 0
+  ) %>%
+  summarise(n = n_distinct(curve_ID)) %>%
+  pull(n)
+topt <- ggplot(sup_long %>%
+         filter(n_models > 1, !is.na(diff_best)) %>%
+         filter(parameter == "topt") %>%
+         filter(diff_best != 0) %>%
+           mutate(curve_ID = factor(curve_ID, levels = curve_order)),
+       aes(x = curve_ID, y = diff_best)) +
+  geom_hline(yintercept = 0, color = "grey", linetype = "dashed", linewidth = 1) +
+  geom_point(aes(color = model), alpha = 0.5, size = 2) +
+  geom_hline(yintercept = topt_mean_diff, color = "#222222",linewidth = 0.8, alpha = .9)  +
+  labs(
+    title = "Thermal Optimum",
+    subtitle = paste0("n = ", topt_n),
+    x = "TPC Dataset",
+    y = "Difference in parameter estimate from best model") +
+  theme_bw() +
+  scale_color_manual(values = pal2, breaks = names(pal2)) +
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01))) +
+  scale_y_continuous(limits = c(-18, 18), n.breaks = 10, expand = expansion(mult = c(0.01, 0.01))) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank())
+topt
+
+#### just breadth ####
+breadth_mean_diff <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "breadth",
+    diff_best != 0
+  ) %>%
+  summarise(mean_diff = mean(abs(diff_best))) %>%
+  pull(mean_diff)
+
+breadth_n <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "breadth",
+    diff_best != 0
+  ) %>%
+  summarise(n = n_distinct(curve_ID)) %>%
+  pull(n)
+breadth <- ggplot(sup_long %>%
+         filter(n_models > 1, !is.na(diff_best)) %>%
+         filter(parameter == "breadth") %>%
+         filter(diff_best != 0) %>%
+           mutate(curve_ID = factor(curve_ID, levels = curve_order)),
+       aes(x = curve_ID, y = diff_best)) +
+  geom_hline(yintercept = 0, color = "grey", linetype = "dashed", linewidth = 1) +
+  geom_point(aes(color = model), alpha = 0.5, size = 2) +
+  geom_hline(yintercept = breadth_mean_diff, color = "#222222",linewidth = 0.8, alpha = .9)  +
+  labs(
+    title = "Performance Breadth",
+    subtitle = paste0("n = ", breadth_n),
+    x = "TPC Dataset",
+    y = "Difference in parameter estimate from best model") +
+  theme_bw() +
+  scale_color_manual(values = pal2, breaks = names(pal2)) +
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01))) +
+  scale_y_continuous(limits = c(-18, 18), n.breaks = 10, expand = expansion(mult = c(0.01, 0.01))) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank())
+breadth
+
+#### thermal tolerance ####
+thermal_tolerance_mean_diff <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "thermal_tolerance",
+    diff_best != 0
+  ) %>%
+  summarise(mean_diff = mean(abs(diff_best))) %>%
+  pull(mean_diff)
+thermal_tol_n <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "thermal_tolerance",
+    diff_best != 0
+  ) %>%
+  summarise(n = n_distinct(curve_ID)) %>%
+  pull(n)
+thermal_tolerance <- ggplot(sup_long %>%
+                    filter(n_models > 1, !is.na(diff_best)) %>%
+                    filter(parameter == "thermal_tolerance") %>%
+                    filter(diff_best != 0) %>%
+                      mutate(curve_ID = factor(curve_ID, levels = curve_order)),
+                  aes(x = curve_ID, y = diff_best)) +
+  geom_hline(yintercept = 0, color = "grey", linetype = "dashed", linewidth = 1) +
+  geom_point(aes(color = model), alpha = 0.5, size = 2) +
+  geom_hline(yintercept = thermal_tolerance_mean_diff, color = "#222222",linewidth = 0.8, alpha = .9)  +
+  labs(
+    title = "Thermal Tolerance",
+    subtitle = paste0("n = ", thermal_tol_n),
+    x = "TPC Dataset",
+    y = "Difference in parameter estimate from best model") +
+  theme_bw() +
+  scale_color_viridis_d(option = "turbo", end = 0.95) +
+  scale_color_manual(values = pal2, breaks = names(pal2)) +
+  scale_y_continuous(limits = c(-18, 18), n.breaks = 10, expand = expansion(mult = c(0.01, 0.01))) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank())
+thermal_tolerance
+
+#### ctmin  ####
+ctmin_mean_diff <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "ctmin",
+    diff_best != 0
+  ) %>%
+  summarise(mean_diff = mean(abs(diff_best))) %>%
+  pull(mean_diff)
+ctmin_n <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "ctmin",
+    diff_best != 0
+  ) %>%
+  summarise(n = n_distinct(curve_ID)) %>%
+  pull(n)
+tmin <- ggplot(sup_long %>%
+                 filter(n_models > 1, !is.na(diff_best)) %>%
+                 filter(parameter == "ctmin") %>%
+                 filter(diff_best != 0) %>%
+                 mutate(curve_ID = factor(curve_ID, levels = curve_order)),
+               aes(x = curve_ID, y = diff_best)) +
+  geom_hline(yintercept = 0, color = "grey", linetype = "dashed", linewidth = 1) +
+  geom_point(aes(color = model), alpha = 0.5, size = 2) +
+  geom_hline(yintercept = ctmin_mean_diff, color = "#222222",linewidth = 0.8, alpha = .9)  +
+  labs(
+    title = "Tmin",
+    subtitle = paste0("n = ", ctmin_n),
+    x = "TPC Dataset",
+    y = "Difference in parameter estimate from best model") +
+  theme_bw() +
+  scale_color_manual(values = pal2, breaks = names(pal2)) +
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01))) +
+  scale_y_continuous(limits = c(-18, 18), n.breaks = 10, expand = expansion(mult = c(0.01, 0.01))) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank())
+tmin
+
+###ctmax ##
+ctmax_mean_diff <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "ctmax",
+    diff_best != 0
+  ) %>%
+  summarise(mean_diff = mean(abs(diff_best))) %>%
+  pull(mean_diff)
+ctmax_n <- sup_long %>%
+  filter(
+    n_models > 1,
+    !is.na(diff_best),
+    parameter == "ctmax",
+    diff_best != 0
+  ) %>%
+  summarise(n = n_distinct(curve_ID)) %>%
+  pull(n)
+
+tmax <- ggplot(sup_long %>%
+                 filter(n_models > 1, !is.na(diff_best)) %>%
+                 filter(parameter == "ctmax") %>%
+                 filter(diff_best != 0) %>%
+                 mutate(curve_ID = factor(curve_ID, levels = curve_order)),
+               aes(x = curve_ID, y = diff_best)) +
+  geom_hline(yintercept = 0, color = "grey", linetype = "dashed", linewidth = 1) +
+  geom_point(aes(color = model), alpha = 0.5, size = 2) +
+  geom_hline(yintercept = ctmax_mean_diff, color = "#222222",linewidth = 0.8, alpha = .9)  +
+  labs(
+    title = "Tmax",
+    subtitle = paste0("n = ", ctmax_n),
+    x = "TPC Dataset",
+    y = "Difference in parameter estimate from best model") +
+  theme_bw() +
+  scale_color_manual(values = pal2, breaks = names(pal2)) +
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01))) +
+  scale_y_continuous(limits = c(-18, 18), n.breaks = 10, expand = expansion(mult = c(0.01, 0.01))) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank())
+tmax
+
+
+ggsave("topt_parm_dif_withoutleg.pdf", plot = topt, path = here("figures"),width = 7.5, height = 5)
+ggsave("breadth_parm_dif.pdf", plot = breadth, path = here("figures"),width = 7.5, height = 5)
+ggsave("thermal_tol_parm_dif.pdf", plot = thermal_tolerance, path = here("figures"),width = 7.5, height = 5)
+ggsave("tmin_parm_dif.pdf", plot = tmin, path = here("figures"),width = 7.5, height = 5)
+ggsave("tmax_parm_dif.pdf", plot = tmax, path = here("figures"),width = 7.5, height = 5)

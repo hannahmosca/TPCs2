@@ -141,34 +141,49 @@ trait.groups <- ggplot(average_ee_TG, aes(x = averaged_e, y = Trait.Group)) +
 trait.groups
 ggsave("activation-en-trait-groups.pdf",plot = trait.groups, path = here("figures"), width = 5, height = 4)
 
+eemotivation_n <- average_ee_TM %>%
+  filter(!is.na(averaged_e)) %>%
+  group_by(Trait.motivation) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  left_join(motivation_summary %>% select(mean_e, Trait.motivation), join_by(Trait.motivation))
 ## motivation plot ##
 trait.motivation <- ggplot(average_ee_TM, aes(x = averaged_e, y = Trait.motivation)) +
   geom_vline(xintercept = 0.65, linetype = "dashed", color = "red3",linewidth = 0.5, alpha = 0.4) +
   geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = 0.5) +
-  geom_point(shape = 73, size = 2.5, alpha = 0.4) +
+  geom_point(shape = 73, size = 3.5, alpha = 0.4) +
   geom_errorbarh(data = motivation_summary, inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high, y = Trait.motivation), height = 0.10, linewidth = 0.4, color = "black", position = position_nudge(y = -0.15)) +
-  geom_point(data = motivation_summary, inherit.aes = FALSE, aes(x = mean_e, y = Trait.motivation), shape = 21, size = 1.5, fill = "red", alpha = 0.7, position = position_nudge(y = -0.15)) +
-  geom_point(data = motivation_summary,inherit.aes = FALSE, aes(x = median_e, y = Trait.motivation), shape = 23, size = 1.5, fill = "grey", alpha = 0.7, position = position_nudge(y = -0.15)) +
+  geom_point(data = motivation_summary, inherit.aes = FALSE, aes(x = mean_e, y = Trait.motivation), shape = 21, size = 3, fill = "red", alpha = 0.7, position = position_nudge(y = -0.15)) +
+  geom_point(data = motivation_summary,inherit.aes = FALSE, aes(x = median_e, y = Trait.motivation), shape = 23, size = 3, fill = "grey", alpha = 0.7, position = position_nudge(y = -0.15)) +
+  geom_text(data = eemotivation_n, inherit.aes = FALSE, aes(x = mean_e, y = Trait.motivation, label = paste0("n = ", n)),
+            position = position_nudge(y = -0.28), hjust = 0.5, size = 2.5, color = "black") +
   labs(x = "Activation energy (Ev)", y = NULL) +
   scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0, 0))) +
-  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
-  theme_classic(base_size = 18) +
+  scale_y_discrete(expand = expansion(mult = c(0.12, 0.13))) +
+  theme_classic(base_size = 15) +
   theme(axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black"),legend.position = "none")
 trait.motivation
-ggsave("activation-en-trait-motivation.pdf", plot = trait.motivation, path = here("figures"),width = 5, height = 4)
+ggsave("activation-en-trait-motivation.pdf", plot = trait.motivation, path = here("figures"), width = 5, height = 4)
 
 ## organization plot ##
+ee_organization_n <- average_ee_TO %>%
+  filter(!is.na(averaged_e)) %>%
+  group_by(organization) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  left_join(organization_summary %>% select(mean_e, organization), join_by(organization))
+
 trait.organization <- ggplot(average_ee_TO, aes(x = averaged_e, y = organization)) +
   geom_vline(xintercept = 0.65, linetype = "dashed", color = "red3", linewidth = 0.5, alpha = 0.4) +
   geom_density_ridges(alpha = 0.3, fill = "grey40", linewidth = 0, scale = 0.5) +
-  geom_point(shape = 73, size = 2.5, alpha = 0.4) +
+  geom_point(shape = 73, size = 3.5, alpha = 1) +
   geom_errorbarh(data = organization_summary, inherit.aes = FALSE, aes(xmin = ci_low, xmax = ci_high, y = organization), height = 0.10, linewidth = 0.4, color = "black", position = position_nudge(y = -0.15)) +
-  geom_point(data = organization_summary, inherit.aes = FALSE, aes(x = mean_e, y = organization), shape = 21, size = 1.5, fill = "red", alpha = 0.7, position = position_nudge(y = -0.15)) +
-  geom_point(data = organization_summary, inherit.aes = FALSE, aes(x = median_e, y = organization), shape = 23, size = 1.5, fill = "grey", alpha = 0.7, position = position_nudge(y = -0.15)) +
+  geom_point(data = organization_summary, inherit.aes = FALSE, aes(x = mean_e, y = organization), shape = 21, size = 3, fill = "red", alpha = 0.7, position = position_nudge(y = -0.15)) +
+  geom_point(data = organization_summary, inherit.aes = FALSE, aes(x = median_e, y = organization), shape = 23, size = 3, fill = "grey", alpha = 0.7, position = position_nudge(y = -0.15)) +
+  geom_text(data = ee_organization_n, inherit.aes = FALSE, aes(x = mean_e, y = organization, label = paste0("n = ", n)),
+            position = position_nudge(y = -0.28), hjust = 0.5, size = 2.5, color = "black") +
   labs(x = "Activation energy (Ev)", y = NULL) +
   scale_x_continuous(limits = global_x_limits, expand = expansion(mult = c(0, 0))) +
-  scale_y_discrete(expand = expansion(mult = c(0.13, 0.13))) +
-  theme_classic(base_size = 18) +
+  scale_y_discrete(expand = expansion(mult = c(0.12, 0.13))) +
+  theme_classic(base_size = 15) +
   theme(axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black"), legend.position = "none")
 trait.organization
 ggsave("activation-en-trait-organization.pdf", plot = trait.organization, path = here("figures"), width = 5, height = 4)
@@ -215,7 +230,6 @@ pairwise_contrasts_motivation_Ea_model <- pairs(motivation_Ea_model_pairwise)
 summary(pairwise_contrasts_motivation_Ea_model)
 
 ## response organizaiton ##
-
 
 organization_Ea_model <- glm(averaged_e ~ organization, data = average_ee_TO, family = Gamma(link = "log"))
 summary(organization_Ea_model)

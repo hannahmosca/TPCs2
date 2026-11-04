@@ -138,10 +138,20 @@ motivation_cols <- c(
   "voluntary"  = "#77966D",
   "positive"   = "#BDC667",
   "negative"   = "red3")
+motivation_counts <- curves_unique %>%
+  count(Trait.motivation) %>%
+  mutate(label = paste0(
+    tools::toTitleCase(as.character(Trait.motivation)),
+    " (n = ", n, ")"
+  ))
 
 p_trait_motivation <- ggplot(curves_unique, aes(x = Trait.Group, fill = Trait.motivation)) +
   geom_bar(position = "stack", colour = "black", linewidth = 0.4) +
-  scale_fill_manual(values = motivation_cols, labels = c("Autonomic", "Voluntary", "Positive", "Negative")) +
+  scale_fill_manual(
+    values = motivation_cols,
+    labels = setNames(
+      motivation_counts$label,
+      motivation_counts$Trait.motivation)) +
   labs(x = NULL, y = "Number of datasets", fill = "Trait motivation") +
   scale_y_continuous(expand = expansion(mult = 0), breaks = seq(0, 150, 25)) +
   scale_x_discrete(expand = expansion(mult = 0)) +
@@ -149,11 +159,13 @@ p_trait_motivation <- ggplot(curves_unique, aes(x = Trait.Group, fill = Trait.mo
   theme_classic() +
   theme(
     legend.position = "right",
-    axis.text.y = element_text(size = 14),
-    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    legend.text = element_text(size = 7),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank()
   )
+
 
 p_trait_motivation
 ggsave("curves_by_trait_group_and_motivation.pdf", p_trait_motivation, path = here("figures"), width = 6, height = 4.5)
@@ -252,7 +264,8 @@ world_map <- map_data("world")
 # 1 point per unique lat/long 
 collection_points <- curves_unique %>%
   distinct(latitude, longitude, land_or_sea)
-
+collection_points %>%
+  count(land_or_sea)
 p_collection_map <- ggplot() +
   geom_polygon(data = world_map, aes(x = long, y = lat, group = group), fill = "lightgrey", color = "grey67") +
   geom_point(data = collection_points, aes(x = longitude, y = latitude, fill = land_or_sea), color = "black", size = 3, alpha = 0.55, shape = 21, stroke = 0.3, position = position_jitter(width = 0.1, height = 0.1)) +

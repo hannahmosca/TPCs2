@@ -13,7 +13,7 @@ library(dplyr)
 library(tidyverse)
 rm(list = ls())
 
-#loading data
+#### 01. load required data ####
 params <- readRDS(here('processed-data', 'tpcs_with_fitted_params_with_act_eng_10_6.RDS'))
 curves <- read.csv(here('processed-data', 'FishTherm.csv'))
 params <- params %>%
@@ -28,9 +28,10 @@ params <- params %>%
   mutate(organization = factor(organization, levels = c("internal", "individual", "interaction", "population"))) %>%
   mutate(environment = factor(environment, levels = c("marine", "freshwater"))) %>%
   mutate(study_ID = as.factor(study_ID))
+
 # load temperature data in #
-freshwater_points <- readRDS(here("processed-data", "my_points_freshwater_summary.RDS"))
-marine_points <- readRDS(here("processed-data", "my_points_sst_summary.RDS")) %>%
+freshwater_points <- read.csv(here("processed-data", "new_my_points_freshwater_summary.csv"))
+marine_points <- read.csv(here("processed-data", "new_my_points_sst_summary.csv")) %>%
   rename(q_low = q2.5) %>%
   rename(q_high = q97.5)
 freshwater_points <- freshwater_points %>%
@@ -39,11 +40,15 @@ marine_points <- marine_points %>%
   mutate(environment = "marine")
 point_data_all <- rbind(freshwater_points, marine_points) %>%
   select(latitude, longitude, everything())
+
 fits_with_temps <- params %>%
   left_join(point_data_all, join_by(latitude, longitude, environment))
 
+
 # averaging topt by trait group only
 average_topts_TG <- fits_with_temps %>%
+  left_join(curves %>% select(curve_ID, species_ID)) %>%
+  distinct() %>%
   filter(topt_TF == TRUE) %>%
   group_by(study_ID, species_ID, latitude, Trait.Group) %>% 
   mutate(averaged_topt = mean(topt)) %>%
