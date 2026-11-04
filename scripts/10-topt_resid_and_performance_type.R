@@ -33,17 +33,33 @@ params <- params %>%
   mutate(Trait.motivation = factor(Trait.motivation, levels = c("negative", "voluntary", "autonomic", "positive"))) %>%
   mutate(organization = factor(organization, levels = c("internal", "individual", "interaction", "population")))
 
+# load temperature data in #
+freshwater_points <- read.csv(here("processed-data", "new_my_points_freshwater_summary.csv"))
+marine_points <- read.csv(here("processed-data", "new_my_points_sst_summary.csv")) %>%
+  rename(q_low = q2.5) %>%
+  rename(q_high = q97.5)
+freshwater_points <- freshwater_points %>%
+  mutate(environment = "freshwater") 
+marine_points <- marine_points %>%
+  mutate(environment = "marine")
+point_data_all <- rbind(freshwater_points, marine_points) %>%
+  select(latitude, longitude, everything())
+
+fits_with_temps <- params %>%
+  left_join(point_data_all, join_by(latitude, longitude, environment))
+
+
 #### 02. collapse within study/species/latitude by grouping variables ####
 
 # averaging topt by trait group only
-average_topts_TG <- params %>%
+average_topts_TG <- fits_with_temps %>%
   filter(topt_TF == TRUE) %>%
   group_by(study_ID, species_ID, latitude, Trait.Group) %>% 
   mutate(averaged_topt = mean(topt)) %>%
   ungroup()
 
 average_topts_TG <- average_topts_TG %>%
-  select(study_ID, Trait.Group, species_ID, averaged_topt, abs_latitude, latitude, environment) %>%
+  select(study_ID, Trait.Group, species_ID, averaged_topt, abs_latitude, latitude, mean, environment) %>%
   distinct() #140
 average_topts_TG$environment <- as.factor(average_topts_TG$environment)
 average_topts_TG$study_ID <- as.factor(average_topts_TG$study_ID)
@@ -58,20 +74,18 @@ average_topts_TG$resid_topt_lat = residuals(lat_avtopt_TG_model)
 
 ## averaging topt by trait group and motivation ##
 
-average_topts_TM <- params %>%
+average_topts_TM <- fits_with_temps %>%
   filter(topt_TF == TRUE) %>%
   group_by(study_ID, species_ID, latitude, Trait.Group, Trait.motivation) %>% ## could also try cohort 
   mutate(averaged_topt = mean(topt)) %>%
   ungroup()
 
 average_topts_TM <- average_topts_TM %>%
-  select(study_ID, Trait.Group, Trait.motivation, species_ID, averaged_topt, abs_latitude, latitude, environment) %>%
+  select(study_ID, Trait.Group, Trait.motivation, species_ID, averaged_topt, abs_latitude, latitude, mean, environment) %>%
   distinct() #156
 
 average_topts_TM$environment <- as.factor(average_topts_TM$environment)
 average_topts_TM$study_ID <- as.factor(average_topts_TM$study_ID)
-install.packages("mgcv")
-library(mgcv)
 
 lat_avtopt_TM_model <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = average_topts_TM, method = "REML")
 
@@ -81,29 +95,29 @@ average_topts_TM$resid_topt_lat = residuals(lat_avtopt_TM_model)
 
 ##averaging topt by trait group and motivation and organization## 
 
-average_topts_TO <- params %>%
+average_topts_TO <- fits_with_temps %>%
   filter(topt_TF == TRUE) %>%
   group_by(study_ID, species_ID, latitude, Trait.Group, Trait.motivation, organization) %>% ## could also try cohort 
   mutate(averaged_topt = mean(topt)) %>%
   ungroup()
 average_topts_TO <- average_topts_TO %>%
-  select(study_ID, Trait.Group, Trait.motivation, organization, species_ID, averaged_topt, abs_latitude, latitude, environment) %>%
+  select(study_ID, Trait.Group, Trait.motivation, organization, species_ID, averaged_topt, abs_latitude, latitude, mean, environment) %>%
   distinct() #158
 average_topts_TO$environment <- as.factor(average_topts_TO$environment)
 average_topts_TO$study_ID <- as.factor(average_topts_TO$study_ID)
-install.packages("mgcv")
-library(mgcv)
+
 
 lat_avtopt_TO_model <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = average_topts_TO, method = "REML")
-lat_avtopt_TO_model_lm <- lmer(averaged_topt ~ abs_latitude * environment + (1 | study_ID), 
+
+#temperature instead of lat
+temp_avtopt_TO_model_lm <- lmer(averaged_topt ~ mean * environment + (1 | study_ID), 
                                data = average_topts_TO)
 summary(lat_avtopt_TO_model)
-summary(lat_avtopt_TO_model_lm)
+summary(temp_avtopt_TO_model_lm)
 average_topts_TO$resid_topt_lat = residuals(lat_avtopt_TO_model)
-average_topts_TO$resid_topt_lat_lme = residuals(lat_avtopt_TO_model_lm)
+average_topts_TO$resid_topt_temp_lme = residuals(temp_avtopt_TO_model_lm)
 
 #### 03. summaries (mean/median/SE/95% CI) for overlay on ridge plots ####
-
 
 TG_sum <- average_topts_TG %>%
   group_by(Trait.Group) %>%
@@ -267,10 +281,11 @@ summary(pairwise_contrasts_motivation_topt_model)
 ## response organizaiton ##
 
 organization_topt_model <- glm(resid_topt_lat ~ organization, data = average_topts_TO)
-organization_topt_model_lme <- glm(resid_topt_lat_lme ~ organization, data = average_topts_TO)
+
+organization_topt_temp_model_lme <- glm(resid_topt_temp_lme ~ organization, data = average_topts_TO)
 
 summary(organization_topt_model)
-summary(organization_topt_model_lme)
+summary(organization_topt_temp_model_lme)
 
 ## pairwise contrast ##
 organization_topt_model_pairwise <- emmeans(organization_topt_model, ~ organization)
@@ -284,12 +299,12 @@ library(webshot)
 tab_model(response_topt_model,show.se = TRUE, show.stat = TRUE, file = "topt~response_type_models.html")
 tab_model(motivation_topt_model,show.se = TRUE, show.stat = TRUE, file = "topt~motivation_type_models.html")
 tab_model(organization_topt_model, show.se = TRUE, show.stat = TRUE, file = "topt~organization_type_models.html")
-tab_model(organization_topt_model_lme, show.se = TRUE, show.stat = TRUE, file = "topt~organization_type_model_lme.html")
+tab_model(organization_topt_temp_model_lme, show.se = TRUE, show.stat = TRUE, file = "topt_temp~organization_type_model_lme.html")
 
 webshot("topt~response_type_models.html", "topt~response_type_models.pdf")
 webshot("topt~motivation_type_models.html", "topt~motivation_type_models.pdf")
 webshot("topt~organization_type_models.html", "topt~organization_type_models.pdf")
-webshot("topt~organization_type_model_lme.html", "topt~organization_type_model_lme.pdf")
+webshot("topt_temp~organization_type_model_lme.html", "topt_temp~organization_type_model_lme.pdf")
 
 
 # breadth and level of organization
