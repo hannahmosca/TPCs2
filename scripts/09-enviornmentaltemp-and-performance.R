@@ -57,10 +57,8 @@ collapsed_params <- fits_with_temps %>%
     ungroup() %>%
     mutate(environment = as.factor(environment))
 
-length(unique(collapsed_params$averaged_topt)) #139
-
 collapsed_params_unique <- collapsed_params %>%
-  select(study_ID, Trait.Group, species_ID, averaged_e, averaged_topt, averaged_pbreadth, averaged_tbreadth, abs_latitude, latitude, mean, sd, environment, q_high) %>%
+  select(study_ID, Trait.Group, species_ID, averaged_e, averaged_topt, averaged_pbreadth, averaged_tbreadth, abs_latitude, latitude, mean, sd, min, max, environment, q_high) %>%
   distinct()
 
 
@@ -143,8 +141,9 @@ sample_sizes <- data %>%
 sample_sizes
 lat_avtopt_gam <- gam(averaged_topt ~ s(abs_latitude, by = environment) + environment + s(study_ID, bs = "re"), data = data, method = "REML")
 
-summary(lat_avtopt_model)
-summary(lat_avtopt_gam)
+sum <- summary(lat_avtopt_gam)
+sum$p.table
+sum$s.table
 plot(lat_avtopt_gam, pages = 2)
 
 AIC(lat_avtopt_model, lat_avtopt_gam)
@@ -546,9 +545,6 @@ TSM_SD
 ggsave("TSM_sd_lme.pdf", plot = TSM_SD, path = here("figures"), width = 4, height = 4)
 
 
-
-
-
 #### 11 Linear model of performance breadth with latitude ####
 ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_pbreadth)),
        aes(x = abs_latitude, y = averaged_pbreadth, color = environment)) +
@@ -621,8 +617,6 @@ ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)),
   theme_classic() +
   theme(legend.position = "none")
 
-
-
 tolerance_and_breadth_model <- lmer(averaged_tbreadth ~ averaged_pbreadth + (1 | study_ID), 
                                     data = collapsed_params_unique %>%
                                       filter(!is.na(averaged_tbreadth)))
@@ -666,18 +660,6 @@ tolerance_and_breadth_graph <- ggplot(data = pred_grid, aes(x = averaged_pbreadt
 tolerance_and_breadth_graph
 
 ggsave("tolerance_breadth_with_performance_breadth.pdf", plot = tolerance_and_breadth_graph, path = here("figures"), width = 4, height = 4)
-
-#### 12 model summaries ####
-install.packages("sjPlot")
-library(sjPlot)
-library(webshot)
-
-###models that are in main-text paper ###
-tab_model(lat_avtopt_gam, mean_avtopt_model, sd_pbreadth_model, lat_TSM_model, SD_TSM_model, sd_tbreadth_model, show.stat = TRUE, show.se = TRUE, file = "figure3_model_sum_update.html")
-
-webshot("figure3_model_sum_update.html", "figure3_model_sum_update.pdf")
-
-
 
 #### linear model of tolerance breadth with latitude ####
 ggplot(data = collapsed_params_unique %>% filter(!is.na(averaged_tbreadth)),
@@ -798,8 +780,9 @@ pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
 
 topt_extreme_temp <- ggplot(data = pred_grid, aes(x = q_high)) +
   geom_point(data = collapsed_params_unique %>% filter(!is.na(averaged_topt)), aes(x = q_high, y = averaged_topt, color = environment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred, color = environment)) +
+  geom_line(aes(y = pred, color = environment, linetype = environment)) +
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = environment), alpha = 0.20) +
+  scale_linetype_manual(values = c("marine" = "solid", "freshwater" = "dashed")) +
   labs(x = "Upper Habitat Temperature", y = "Thermal Optima") +
   scale_color_manual(
     name = "Realm",
@@ -818,10 +801,68 @@ topt_extreme_temp
 ggsave("topt_extremetemp_lme.pdf", plot = topt_extreme_temp, path = here("figures"), width = 4, height = 4)
 
 
+#### model summaries ####
 
+#### 12 model summaries ####
+install.packages("sjPlot")
+library(sjPlot)
+library(webshot)
 
-
-
+#### table S1 ####
+summary(lat_avtopt_gam)
+library(gt)
+library(tibble)
+gam_summary <- summary(lat_avtopt_gam)
+#extract parametric terms
+parametric <- as.data.frame(gam_summary$p.table) %>%
+  rownames_to_column("Term") %>%
+  rename(
+    Estimate = Estimate,
+    SE = `Std. Error`,
+    t = `t value`,
+    p = `Pr(>|t|)`) %>%
+  mutate(edf = NA,Ref.df = NA, F = NA) %>%
+  select(Term, edf, Ref.df, Estimate, SE, F, t, p)
+# extract smooth terms
+smooth <- as.data.frame(gam_summary$s.table) %>%
+  rownames_to_column("Term") %>%
+  rename(
+    edf = edf,
+    Ref.df = Ref.df,
+    F = F,
+    p = `p-value`) %>%
+  mutate(
+    Estimate = NA,
+    SE = NA,
+    t = NA ) %>%
+  select(Term, edf, Ref.df, Estimate, SE, F, t, p)
+# combine
+gam_table <- bind_rows(parametric, smooth)
+gam_table_all <- gam_table %>%
+  mutate(
+    across(c(edf, Ref.df, Estimate, SE, F, t), 
+           ~ round(.x, 3)),
+    p = ifelse(p < 0.001, "<0.001", 
+               format(round(p, 3), nsmall = 3))) %>%
+  gt() %>%
+  cols_label(Term = "Model term", edf = "edf", Ref.df = "Ref. df", Estimate = "Estimate", SE = "SE", F = "F", t = "t", p = "p")
+gtsave(gam_table_all, "GAM_results.html")
+webshot("GAM_results.html", "GAM_results.pdf")
+#### table S2  ####
+tab_model(lat_avtopt_model, show.stat = TRUE, show.se = TRUE, file = "lme_lat_vs_topt_model_sums.html")
+webshot("lme_lat_vs_topt_model_sums.html", "lme_lat_vs_topt_model_sums.html.pdf")
+#### table S3  ####
+tab_model(mean_avtopt_model, extreme_avtopt_model, show.stat = TRUE, show.se = TRUE, file = "mean_extreme_vs_topt_model_sums.html")
+webshot("mean_extreme_vs_topt_model_sums.html", "mean_extreme_vs_topt_model_sums.pdf")
+#### table S4 ####
+tab_model(sd_pbreadth_model, sd_tbreadth_model, show.stat = TRUE, show.se = TRUE, file = "breadth_vs_variability_model_sums.html")
+webshot("breadth_vs_variability_model_sums.html", "breadth_vs_variability_model_sums.pdf")
+####table S5 ####
+tab_model(lat_avpbreadth_model, lat_avtbreadth_model, show.stat = TRUE, show.se = TRUE, file = "breadth_vs_lat_model_sums.html")
+webshot("breadth_vs_lat_model_sums.html", "breadth_vs_lat_model_sums.pdf")
+####table S6 ####
+tab_model(lat_TSM_model, SD_TSM_model, show.stat = TRUE, show.se = TRUE, file = "TSM_vs_lat_and_SDmodel_sums.html")
+webshot("TSM_vs_lat_and_SDmodel_sums.html", "TSM_vs_lat_and_SDmodel_sums.pdf")
 
 
 
@@ -1080,223 +1121,3 @@ tab_model(act_pbreadth_model, act_tbread_model, show.stat = TRUE, show.se = TRUE
 
 library(webshot)
 webshot("Ae_breadth_model_sums.html", "Ae_breadth_model_results.pdf")
-
-
-#### 14. tolerance breadth and topt --hotterisbetter!####
-ggplot(data = collapsed_params_unique %>%
-         filter(!is.na(averaged_tbreadth)) %>%
-         filter(!is.na(averaged_topt)),
-       aes(x = averaged_topt, y = averaged_tbreadth, color = enviornment)) +
-  geom_point(alpha = 0.7) +
-  scale_color_manual(
-    name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
-  ) +
-  theme_classic()
-
-
-
-tol_breadth_topt <- lmer(averaged_topt ~ averaged_tbreadth  + (1 | study_ID), 
-                        data = collapsed_params_unique %>% 
-                          filter(!is.na(averaged_tbreadth)))
-
-summary(tol_breadth_topt)
-
-## want to make sure only predicting on range of data
-tol_range <- collapsed_params_unique %>%
-  filter(!is.na(averaged_tbreadth)) %>%
-  summarise(
-    min_t = min(averaged_tbreadth),
-    max_t = max(averaged_tbreadth))
-
-pred_grid <- data.frame(
-  averaged_tbreadth = seq(tol_range$min_t,
-                      tol_range$max_t),
-  length.out = 200)
-pred_grid$pred <- predict(tol_breadth_topt, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(tol_breadth_topt, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
-
-pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
-pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
-
-
-t_breadth_topt <- ggplot(data = pred_grid, aes(x = averaged_tbreadth)) +
-  geom_point(data = collapsed_params_unique %>%
-               filter(!is.na(averaged_tbreadth)), 
-             aes(x = averaged_tbreadth, y = averaged_topt), colour = "darkgrey", size = 2, alpha = .65) +
-  geom_line(aes(y = pred), color = "black", alpha = .8) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "black", alpha = 0.20) +
-  labs(x = "Tolerance Breadth", y = "Thermal Optima") +
-  theme_classic(base_size = 16) +
-  theme(legend.position = "none")
-  
-
-t_breadth_topt
-
-
-#### 15. topt and perf breadth ####
-ggplot(data = collapsed_params_unique %>%
-         filter(!is.na(averaged_pbreadth)),
-       aes(x = averaged_pbreadth, y = averaged_topt, color = enviornment)) +
-  geom_point(alpha = 0.7) +
-  scale_color_manual(
-    name = "Environment",
-    values = c("Marine" = "blue", "Freshwater" = "lightgreen")
-  ) +
-  theme_classic()
-
-
-
-per_breadth_topt <- lmer(averaged_topt ~ averaged_pbreadth  + (1 | study_ID), 
-                         data = collapsed_params_unique %>% 
-                           filter(!is.na(averaged_pbreadth)))
-
-summary(per_breadth_topt)
-
-## want to make sure only predicting on range of data
-p_range <- collapsed_params_unique %>%
-  filter(!is.na(averaged_pbreadth)) %>%
-  summarise(
-    min_p = min(averaged_pbreadth),
-    max_p = max(averaged_pbreadth))
-
-pred_grid <- data.frame(
-  averaged_pbreadth = seq(p_range$min_p,
-                      p_range$max_p),
-  length.out = 200)
-pred_grid$pred <- predict(per_breadth_topt, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(per_breadth_topt, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
-
-pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
-pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
-
-
-p_breadth_topt <- ggplot(data = pred_grid, aes(x = averaged_pbreadth)) +
-  geom_point(data = collapsed_params_unique %>%
-               filter(!is.na(averaged_pbreadth)), aes(x = averaged_pbreadth, y = averaged_topt), color = "darkgrey", size = 2, alpha = .65) +
-  geom_line(aes(y = pred), color = "black", alpha = .8) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "black", alpha = 0.20) +
-  labs(x = "Performance Breadth", y = "Thermal Optima") +
-  theme_classic(base_size = 16) +
-  theme(legend.position = "none")
-library(patchwork)
-topt_breadth <- t_breadth_topt + p_breadth_topt
-
-topt_breadth
-
-
-#### 16. residual topt and breadth ####
-topts <- collapsed_params_unique %>%
-  filter(!is.na(averaged_topt))
-topts$resid_topt_lat = residuals(lat_avtopt_gam)
-## performance breadth ##
-ggplot(data = topts %>%
-         filter(!is.na(averaged_pbreadth)),
-       aes(x = averaged_pbreadth, y = resid_topt_lat, color = environment)) +
-  geom_point(alpha = 0.7) +
-  scale_color_manual(
-    name = "environment",
-    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
-  ) +
-  theme_classic()
-
-
-resid_topt_perbreadth_lm <- lm(
-  resid_topt_lat ~ averaged_pbreadth,
-  data = topts %>% filter(!is.na(averaged_pbreadth))
-)
-summary(resid_topt_perbreadth)
-nobs(resid_topt_perbreadth)
-## want to make sure only predicting on range of data
-performance_range <- topts %>%
-  filter(!is.na(averaged_pbreadth)) %>%
-  summarise(
-    min_p = min(averaged_pbreadth),
-    max_p = max(averaged_pbreadth))
-
-pred_grid <- data.frame(
-  averaged_pbreadth = seq(performance_range$min_p,
-                          performance_range$max_p),
-  length.out = 200)
-pred_grid$pred <- predict(resid_topt_perbreadth, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(resid_topt_perbreadth, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
-
-pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
-pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
-
-
-resid_topt_perbreadth_graph <- ggplot(data = pred_grid, aes(x = averaged_pbreadth)) +
-  geom_point(data = topts %>%
-               filter(!is.na(averaged_pbreadth)), aes(x = averaged_pbreadth, y = resid_topt_lat, color = environment), size = 2, alpha = .65) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "black", alpha = 0.20) +
-  geom_line(aes(y = pred), color = "black", alpha = .8) +
-  scale_color_manual(
-    name = "Environment",
-    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")) +
-  labs(x = "Performance Breadth", y = "Topt-adjusted for latitude") +
-  theme_classic(base_size = 16) +
-  theme(legend.position = "none")
-
-resid_topt_perbreadth_graph
-
-
-## tolerance breadth ##
-ggplot(data = topts %>%
-         filter(!is.na(averaged_tbreadth)),
-       aes(x = averaged_tbreadth, y = resid_topt_lat, color = environment)) +
-  geom_point(alpha = 0.7) +
-  scale_color_manual(
-    name = "Environment",
-    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
-  ) +
-  theme_classic()
-
-
-
-
-
-resid_topt_tol <- lm(resid_topt_lat ~ averaged_tbreadth, 
-                              data = topts %>% 
-                                filter(!is.na(averaged_tbreadth)))
-nobs(resid_topt_tol)
-summary(resid_topt_tol)
-
-## want to make sure only predicting on range of data
-tolerance_range <- topts %>%
-  filter(!is.na(averaged_tbreadth)) %>%
-  summarise(
-    min_t = min(averaged_tbreadth),
-    max_t = max(averaged_tbreadth))
-
-pred_grid <- data.frame(
-  averaged_tbreadth = seq(tolerance_range$min_t,
-                          tolerance_range$max_t),
-  length.out = 200)
-pred_grid$pred <- predict(resid_topt_tol, newdata = pred_grid, re.form = NA)
-pred_grid$se   <- predict(resid_topt_tol, newdata = pred_grid, re.form = NA, se.fit = TRUE)$se.fit
-
-pred_grid$lower <- pred_grid$pred - 1.96 * pred_grid$se
-pred_grid$upper <- pred_grid$pred + 1.96 * pred_grid$se
-
-
-resid_topt_tolbreadth_graph <- ggplot(data = pred_grid, aes(x = averaged_tbreadth)) +
-  geom_point(data = topts %>%
-               filter(!is.na(averaged_tbreadth)), aes(x = averaged_tbreadth, y = resid_topt_lat, color = environment), size = 2, alpha = .65) +
-  geom_line(aes(y = pred), linetype = "dashed", color = "black", alpha = .8) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "black", alpha = 0.1) +
-  scale_color_manual(
-    name = "Environment",
-    values = c("marine" = "#1F78B4", "freshwater" = "#33A02C")
-  ) +
-  labs(x = "Tolerance Breadth", y = "Topt-adjusted for latitude") +
-  theme_classic(base_size = 16) +
-  theme(legend.position = "none")
-resid_topt_tolbreadth_graph
-adj_topt_breadth <-  resid_topt_perbreadth_graph + resid_topt_tolbreadth_graph
-adj_topt_breadth
-
-ggsave("adjusted_topt_breadth_lin_mod.pdf", plot = adj_topt_breadth, path = here("figures"), width = 7, height = 4)
-
-tab_model(resid_topt_perbreadth, resid_topt_tol, show.stat = TRUE, show.se = TRUE)
-
-

@@ -52,6 +52,7 @@ mean(curves_unique$n_unique_temps) #5.22
 # percentage above 4
 mean(curves_unique$n_unique_temps > 4) * 100 #51.9
 mean(curves_unique$n_unique_temps == 4) *100 #48.1 %
+
 # percentage above 5
 mean(curves_unique$n_unique_temps > 5) * 100 #26.5
 
@@ -182,7 +183,7 @@ family_counts <- curves_taxa %>%
   count(family, name = "datasets_per_family") %>%
   arrange(desc(datasets_per_family))
 
-p_family <- ggplot(family_counts, aes(x = reorder(family, datasets_per_family), y = datasets_per_family)) +
+p_family <- ggplot(family_counts, aes(x = reorder(family, -datasets_per_family), y = datasets_per_family)) +
   geom_col(fill = "black", color = "lightgrey", alpha = 0.9, width = 0.75) +
   coord_flip() +
   labs(x = "Family", y = "Datasets") +
@@ -204,7 +205,7 @@ order_counts <- curves_taxa %>%
   count(order, name = "datasets_per_order") %>%
   arrange(desc(datasets_per_order))
 
-p_order <- ggplot(order_counts, aes(x = reorder(order, datasets_per_order), y = datasets_per_order)) +
+p_order <- ggplot(order_counts, aes(x = reorder(order, -datasets_per_order), y = datasets_per_order)) +
   geom_col(fill = "black", color = "lightgrey", alpha = 0.9, width = 0.9) +
   coord_flip() +
   labs(x = "Order", y = "Datasets") +

@@ -31,6 +31,17 @@ curve_params <- curve_params %>%
 # keep only rows with activation energy estimates
 act_eng <- curve_params %>%
   filter(!is.na(e_arr))
+median(act_eng$e_arr)
+mean_e <- mean(act_eng$e_arr, na.rm = TRUE)
+se_mean_e <- sd(act_eng$e_arr, na.rm = TRUE) /
+  sqrt(sum(!is.na(act_eng$e_arr)))
+sd <- sd(act_eng$e_arr)
+
+median(act_eng$e_arr, na.rm = TRUE)
+
+quantile(act_eng$e_arr, 
+         probs = c(0.25, 0.75), 
+         na.rm = TRUE)
 
 
 # set factor levels for consistent ordering in plots/models
@@ -233,11 +244,8 @@ summary(pairwise_contrasts_motivation_Ea_model)
 
 organization_Ea_model <- glm(averaged_e ~ organization, data = average_ee_TO, family = Gamma(link = "log"))
 summary(organization_Ea_model)
+exp(coef(organization_Ea_model))
 
-## pairwise contrast ##
-organization_Ea_model_pairwise <- emmeans(organization_Ea_model, ~ organization)
-pairwise_contrasts_organization_Ea_model <- pairs(organization_Ea_model_pairwise)
-summary(pairwise_contrasts_organization_Ea_model)
 
 
 library(sjPlot)
@@ -245,7 +253,7 @@ library(webshot)
 
 tab_model(response_Ea_model,show.se = TRUE, show.stat = TRUE, file = "Ev~response_type_models.html")
 tab_model(motivation_Ea_model,show.se = TRUE, show.stat = TRUE, file = "Ev~motivation_type_models.html")
-tab_model(organization_Ea_model,show.se = TRUE, show.stat = TRUE, file = "Ev~organization_type_models.html")
+tab_model(organization_Ea_model,show.se = TRUE, show.stat = TRUE, transform=NULL, file = "Ev~organization_type_models.html")
 webshot("Ev~response_type_models.html", "Ev~response_type_models.pdf")
 webshot("Ev~motivation_type_models.html", "Ev~motivation_type_models.pdf")
 webshot("Ev~organization_type_models.html", "Ev~organization_type_models.pdf")
