@@ -44,7 +44,7 @@ The following are all of the R scripts contained in this repository and a short 
  -  Processes weekly freshwater stream temperature rasters (FutureStreams) into monthly mean temperatures for the FishTherm study window (1982-01 to 2025-09). Computes long-term freshwater summary rasters (mean, sd, min, max, 2.5% and 97.5% quantiles) across all months in the window, maps sampling locations, and extracts summary statistics at unique freshwater study coordinates.
 #### 09-enviornmentaltemp-and-performance.R
 - hypothesis-testing / model-fitting script that joins fitted TPC parameters to environmental temperature summaries, collapses curves to reduce pseudoreplication, then runs a set of mixed-effects regressions on thermal performance parameters 
-#### 010-activation-energy-and-performance-type.R
+#### 10-activation-energy-and-performance-type.R
  - Analyzes fitted activation energy estimates (Ev) across response contexts in FishTherm
 #### 11-topt_resid_and_performance_type.R
  - Analyzes residual variation in topt across response contexts in FishTherm
