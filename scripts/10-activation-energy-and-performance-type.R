@@ -10,8 +10,6 @@
 # ============================================================
 
 
-
-
 #### this is a script for analyzing activation energy by response context ####
 
 #### 01. Load and join data ####
