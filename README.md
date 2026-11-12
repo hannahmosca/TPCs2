@@ -6,7 +6,7 @@ All scripts are organized to allow the analyses in the manuscript to be reproduc
 
 ## Data 
 FishTPC Data for public use
- - [FishTherm](https://github.com/hannahmosca/TPCs2/blob/main/processed-data/FishTPC.csv)
+ - [FishTPC](https://github.com/hannahmosca/TPCs2/blob/main/processed-data/FishTPC.csv)
  
 A minimum dataset needed to reproduce all main analyses and large files that cannot be hosted on Github can be downloaded from these links here.
   
