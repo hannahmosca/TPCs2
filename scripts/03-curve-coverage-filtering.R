@@ -1,8 +1,6 @@
 #### Script info ####
 # Title: curve_coverage_filtering.R
-# Classifies each FishTherm curve by curve coverage (e.g., full curve, T-min only, T-max only, T-opt only, bounded-with-optimum, unbounded) using scaled responses and simple shape/boundedness rules, along with visualizingm then writes curve-type labels and coverage flags back to a processed dataset.
-
-### flagging that i want to replace catagory names in this script with those that match the figure ###
+# Classifies each FishTherm curve by curve coverage (e.g., full_curve, optimum_only, full_rise_with_opt, full_decline_with_opt, partial_rise_with_min, partial_decline_with_max, partial_rise, partial_decline) using scaled responses and simple shape/boundedness rules, along with visualizingm then writes curve-type labels and coverage flags back to a processed dataset.
 
 #### 1. load packages and data ####
 library(dplyr)
@@ -43,34 +41,6 @@ optimum_check <- data_scaled %>%
 optimum_curves2 <- optimum_check %>%
   filter(has_optimum == TRUE)
 optimum_curves2_list <- c(optimum_curves2$curve_ID)
-
-# #in optimum_2 curves but not in opt_list from first script
-# setdiff(optimum_curves2_list, topt_list_01) 
-# difference1 <- setdiff(optimum_curves2_list, topt_list_01)
-# 
-# # see notes app
-# #in topt list from first script but not in optimum_2
-# setdiff(topt_list_01, optimum_curves2_list) # 4
-# difference2 <- setdiff(topt_list_01, optimum_curves2_list)
-# #446 is should be in the just increasing kind
-# #437, 440, 455 should be in optima estimatable // topt list
-
-# # vis check #
-# responses <- data_scaled %>%
-#   select(curve_ID, Trait.Group, response_unit) %>%
-#   distinct()
-# curve_labels <- responses %>%
-#   mutate(label = paste0(Trait.Group, " (", curve_ID, ")")) %>%
-#   select(curve_ID, label) %>%
-#   deframe()
-# # ggplot() +
-#   geom_point(data = data_scaled %>%
-#                filter(curve_ID %in% difference2),
-#              aes(x = test_temp, y = response_scaled)) +
-#   facet_wrap_paginate(~curve_ID, scales = "free", ncol = 4, nrow = 4, page = 1,
-#                       labeller = labeller(curve_ID = curve_labels))
-
-## manual/visual reassignment for topt ##
 
 # had to manually reassign 29 tpcs in this part #
 manual_reass_list_opt_add <- c(437,440,455) #have opt
@@ -285,7 +255,7 @@ distinct_curves <- curves %>%
 
 dataset_types <- distinct_curves %>%
   group_by(curve_ID) %>%
-  select(curve_ID, dataset_type) %>%
+  select(curve_ID, dataset_type) %>% 
   distinct() %>%
   mutate(topt_TF = dataset_type %in% c("full_curve","optimum_only","full_rise_with_opt","full_decline_with_opt"),
   thermal_min_TF = dataset_type %in% c("full_curve","full_rise_with_opt", "partial_rise_with_min"),
@@ -301,42 +271,3 @@ curves <- curves %>%
 write.csv(curves, file = here('processed-data', "fishtherm_curve_coverage_sorted_updated10_5.csv"))
 
 
-
-
-#### 09. visualization ####
-curves <- curves %>%
-  select(n_unique_temps, curve_ID, study_ID, species_ID, given_trait_name, Trait.Group, Trait.motivation, organization, curve_type, land_or_sea, abs_latitude, habitat_water, dataset_type, topt_TF, thermal_min_TF, thermal_max_TF, increasing_side_TF, decreasing_side_TF) %>%
-  distinct() %>%
-  mutate(n_unique_temps_capped = ifelse(n_unique_temps >= 7, "7+", n_unique_temps))
-
-## curve coverage figures ##
-
-## want to order it by how much is most seen
-curves <- curves %>%
-  mutate(dataset_type = factor(
-    dataset_type, levels = c("partial_decline_with_max","full_decline_with_opt", "partial_rise_with_min", "full_curve","partial_decline", "full_rise_with_opt", "irregular","partial_rise", "optimum_only"))) %>%
-  mutate(n_unique_temps_capped = factor(n_unique_temps_capped,
-                                        levels = c("7+", "6", "5", "4")))
-
-counts <- curves %>%
-  count(dataset_type)
-
-a <- ggplot(data = curves, aes(x = dataset_type, fill = (n_unique_temps_capped))) +
-  geom_bar(position = "stack", colour = "black",linewidth = 0.3) +
-  scale_fill_manual(values = c("4"= "#CDEDF6","5" = "#208AAE","6" ="#70161E","7+" = "#0D2149")) +
-  xlab(NULL) +
-  ylab("Number of datasets") +
-  scale_y_continuous(expand = expansion(mult = 0.00),
-                     breaks = seq(0,150,25)) +
-  scale_x_discrete(labels = c("full_curve" = "Full curve", "left_bound_withopt" = "T-min + T-opt","right_bound_withopt" = "T-max + T-opt", "topt" = "T-opt only", "left_bound" = "T-min only","right_bound" = "T-max only","unbounded_increasing" = "Unbound, inc", "unbounded_decreasing" = "Unbound, dec","irregular" = "Irregular")) +coord_flip() +
-  theme_classic() +
-  theme(
-    legend.position = "right",
-    axis.text.y = element_text(size = 14),
-    axis.text.x = element_text(size = 14),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank()
-  )
-
-a
-ggsave("curve_coverage_by_temperature_resolution.pdf", plot = a, path = here("figures"), width = 6, height = 4)
