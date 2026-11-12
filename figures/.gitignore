@@ -12,7 +12,6 @@ gam_topt_lat.pdf
 histogram_test_temps.pdf
 less_extremes.pdf
 linear_model_sum_update.pdf
-main-text-figs
 marine_bike.pdf
 marine_bike.png
 performance_breadth_sd_lme.pdf
@@ -42,3 +41,5 @@ topt_parm_dif_withoutleg.pdf
 topt~organization_type_models.pdf
 topt~response_type_models.pdf
 warm_slope.pdf
+not_github
+
