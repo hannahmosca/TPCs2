@@ -369,5 +369,4 @@ FishTherm <- curves_new %>%
         extraction_method, data_type, animal_maintenance_notes, field_or_lab)
 
 write.csv(FishTherm, file = here("processed-data", "FishTherm.csv"))
-saveRDS(curves_new, file = here("processed-data", "wild-tpcs-clean.RdS"))
 
