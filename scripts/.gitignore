@@ -1,3 +1,5 @@
 .DS_Store
 overlaid.curves.R
 03_curve_coverage_filtering.R
+00-extraction-data-cleaning.R
+001-prep-fishtpc.R
