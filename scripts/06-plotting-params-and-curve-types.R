@@ -93,18 +93,4 @@ a <- ggplot(plot_data, aes(x = dataset_type, y = value, colour = parameter)) +
 a
 ggsave("dataset_type_and_parameters.pdf", plot = a, path = here("figures"), width = 8, height = 4)
 
-dataset_types <- read.csv(here('processed-data', "fishtherm_curve_coverage_sorted_updated10_5.csv")) %>%
-  select(curve_ID, dataset_type) %>%
-  distinct()
-n <- dataset_types %>%
-  distinct(curve_ID, dataset_type) %>%
-  count(dataset_type, name = "n_tpc")
-#### this should be reported in the text - the sorted data #s before things were filtered out ####
 
-
-n_parameter_total <- plot_data %>%
-  distinct(curve_ID, parameter) %>%
-  count(parameter, name = "n_total")
-n_parameter_group <- plot_data %>%
-  distinct(curve_ID, dataset_type, parameter) %>%
-  count(dataset_type, parameter, name = "n_group")
