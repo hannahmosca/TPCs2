@@ -1,4 +1,4 @@
-# FishTherm
+# FishTPC
 
 ## Introduction
 This repository contains the data and code used to produce the analyses and figures presented in "Thermal performance metrics of fish vary across thermal environments and levels of biological organization." The study introduces FishTherm, a compilation database of thermal performance curves for wild fishes, and examines how key thermal parameters—including thermal optima, performance breadth, tolerance breadth, and activation energy—vary across latitude, habitat, response type, and levels of biological organization.
